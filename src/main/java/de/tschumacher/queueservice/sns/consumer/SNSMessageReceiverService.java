@@ -21,11 +21,14 @@ import de.tschumacher.queueservice.sqs.SQSQueue;
 
 public class SNSMessageReceiverService<F> extends AbstractMessageReceiverService<F> {
 
-
-  public SNSMessageReceiverService(SNSQueue snsQueue, SQSQueue sqsQueue, MessageHandler<F> handler,
-      SQSMessageFactory<F> factory) {
-    super(sqsQueue, new SNSMessageReceiver<>(handler, factory));
-    snsQueue.subscribeSQSQueue(sqsQueue.getQueueArn());
-    sqsQueue.addSNSPermissions(snsQueue.getTopicArn());
-  }
+    public SNSMessageReceiverService(
+        SNSQueue snsQueue,
+        SQSQueue sqsQueue,
+        MessageHandler<F> handler,
+        SQSMessageFactory<F> factory
+    ) {
+        super(sqsQueue, new SNSMessageReceiver<>(handler, factory));
+        snsQueue.subscribeSQSQueue(sqsQueue.getQueueArn());
+        sqsQueue.addSNSPermissions(snsQueue.getTopicArn());
+    }
 }

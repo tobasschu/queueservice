@@ -18,20 +18,18 @@ package de.tschumacher.queueservice.message;
 import de.tschumacher.queueservice.message.coder.SQSCoder;
 
 public class SQSMessageFactory<F> {
+    private final SQSCoder<F> coder;
 
-	private final SQSCoder<F> coder;
+    public SQSMessageFactory(final SQSCoder<F> coder) {
+        super();
+        this.coder = coder;
+    }
 
-	public SQSMessageFactory(final SQSCoder<F> coder) {
-		super();
-		this.coder = coder;
-	}
+    public SQSMessage<F> createMessage(final String body) {
+        return new SQSMessage<F>(this.coder, body);
+    }
 
-	public SQSMessage<F> createMessage(final String body) {
-		return new SQSMessage<F>(this.coder, body);
-	}
-
-	public SQSMessage<F> createMessage(final F body) {
-		return new SQSMessage<F>(this.coder, body);
-	}
-
+    public SQSMessage<F> createMessage(final F body) {
+        return new SQSMessage<F>(this.coder, body);
+    }
 }

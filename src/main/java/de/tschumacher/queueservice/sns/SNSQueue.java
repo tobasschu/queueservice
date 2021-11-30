@@ -14,11 +14,9 @@
 package de.tschumacher.queueservice.sns;
 
 public interface SNSQueue {
+    void sendMessage(String message);
 
-  void sendMessage(String message);
+    void subscribeSQSQueue(String queueArn);
 
-  void subscribeSQSQueue(String queueArn);
-
-  String getTopicArn();
-
+    String getTopicArn();
 }

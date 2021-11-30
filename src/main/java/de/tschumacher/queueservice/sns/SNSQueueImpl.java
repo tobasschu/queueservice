@@ -20,51 +20,45 @@ import com.amazonaws.services.sns.AmazonSNSAsync;
 import com.amazonaws.services.sns.AmazonSNSAsyncClientBuilder;
 
 public class SNSQueueImpl implements SNSQueue {
-  private static final String DEFAULT_REGION = Regions.EU_CENTRAL_1.getName();
-  private final AmazonSNSAsync sns;
-  private final String topicArn;
+    private static final String DEFAULT_REGION = Regions.EU_CENTRAL_1.getName();
+    private final AmazonSNSAsync sns;
+    private final String topicArn;
 
+    public SNSQueueImpl(AmazonSNSAsync sns, final String snsName) {
+        super();
+        this.sns = sns;
+        this.topicArn = SNSUtil.createTopic(this.sns, snsName);
+    }
 
-  public SNSQueueImpl(AmazonSNSAsync sns, final String snsName) {
-    super();
-    this.sns = sns;
-    this.topicArn = SNSUtil.createTopic(this.sns, snsName);
-  }
+    public SNSQueueImpl(final String accessKey, final String secretKey, final String snsName) {
+        this(accessKey, secretKey, DEFAULT_REGION, snsName);
+    }
 
-  public SNSQueueImpl(final String accessKey, final String secretKey, final String snsName) {
-    this(accessKey, secretKey, DEFAULT_REGION, snsName);
-  }
+    public SNSQueueImpl(final String accessKey, final String secretKey, String regionName, final String snsName) {
+        this(createAmazonSQS(accessKey, secretKey, regionName), snsName);
+    }
 
-  public SNSQueueImpl(final String accessKey, final String secretKey, String regionName,
-      final String snsName) {
-    this(createAmazonSQS(accessKey, secretKey, regionName), snsName);
+    private static AmazonSNSAsync createAmazonSQS(final String accessKey, final String secretKey, String regionName) {
+        final BasicAWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
+        return AmazonSNSAsyncClientBuilder
+            .standard()
+            .withCredentials(new AWSStaticCredentialsProvider(credentials))
+            .withRegion(Regions.fromName(regionName))
+            .build();
+    }
 
-  }
+    @Override
+    public void sendMessage(String message) {
+        this.sns.publishAsync(getTopicArn(), message);
+    }
 
+    @Override
+    public void subscribeSQSQueue(String queueArn) {
+        this.sns.subscribe(getTopicArn(), "sqs", queueArn);
+    }
 
-  private static AmazonSNSAsync createAmazonSQS(final String accessKey, final String secretKey,
-      String regionName) {
-    final BasicAWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
-    return AmazonSNSAsyncClientBuilder.standard()
-        .withCredentials(new AWSStaticCredentialsProvider(credentials))
-        .withRegion(Regions.fromName(regionName)).build();
-  }
-
-
-  @Override
-  public void sendMessage(String message) {
-    this.sns.publishAsync(getTopicArn(), message);
-  }
-
-  @Override
-  public void subscribeSQSQueue(String queueArn) {
-    this.sns.subscribe(getTopicArn(), "sqs", queueArn);
-  }
-
-  @Override
-  public String getTopicArn() {
-    return this.topicArn;
-  }
-
-
+    @Override
+    public String getTopicArn() {
+        return this.topicArn;
+    }
 }

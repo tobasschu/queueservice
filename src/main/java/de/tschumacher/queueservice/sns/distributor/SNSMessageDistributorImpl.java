@@ -17,27 +17,21 @@ import de.tschumacher.queueservice.message.SQSMessageFactory;
 import de.tschumacher.queueservice.sns.SNSQueue;
 
 public class SNSMessageDistributorImpl<T> implements SNSMessageDistributor<T> {
-  private final SNSQueue snsQueue;
-  private final SQSMessageFactory<T> factory;
+    private final SNSQueue snsQueue;
+    private final SQSMessageFactory<T> factory;
 
+    public SNSMessageDistributorImpl(SNSQueue snsQueue, SQSMessageFactory<T> factory) {
+        super();
+        this.snsQueue = snsQueue;
+        this.factory = factory;
+    }
 
+    @Override
+    public void distribute(final T message) {
+        this.snsQueue.sendMessage(createMessage(message));
+    }
 
-  public SNSMessageDistributorImpl(SNSQueue snsQueue, SQSMessageFactory<T> factory) {
-    super();
-    this.snsQueue = snsQueue;
-    this.factory = factory;
-  }
-
-
-  @Override
-  public void distribute(final T message) {
-    this.snsQueue.sendMessage(createMessage(message));
-  }
-
-
-
-  private String createMessage(final T message) {
-    return this.factory.createMessage(message).getContentAsString();
-  }
-
+    private String createMessage(final T message) {
+        return this.factory.createMessage(message).getContentAsString();
+    }
 }

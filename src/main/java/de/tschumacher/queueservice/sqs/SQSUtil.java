@@ -17,22 +17,23 @@ import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
 
 public class SQSUtil {
-  public static String getQueueUrl(final AmazonSQS sqs, final String queueName) {
-    return sqs.getQueueUrl(queueName).getQueueUrl();
-  }
 
-  public static String create(final AmazonSQS sqs, final String queueName) {
-    return sqs.createQueue(queueName).getQueueUrl();
-  }
-
-  public static String createIfNotExists(final AmazonSQS sqs, final String queueName) {
-    String queueUrl;
-    try {
-      queueUrl = getQueueUrl(sqs, queueName);
-    } catch (final QueueDoesNotExistException e) {
-      queueUrl = create(sqs, queueName);
+    public static String getQueueUrl(final AmazonSQS sqs, final String queueName) {
+        return sqs.getQueueUrl(queueName).getQueueUrl();
     }
 
-    return queueUrl;
-  }
+    public static String create(final AmazonSQS sqs, final String queueName) {
+        return sqs.createQueue(queueName).getQueueUrl();
+    }
+
+    public static String createIfNotExists(final AmazonSQS sqs, final String queueName) {
+        String queueUrl;
+        try {
+            queueUrl = getQueueUrl(sqs, queueName);
+        } catch (final QueueDoesNotExistException e) {
+            queueUrl = create(sqs, queueName);
+        }
+
+        return queueUrl;
+    }
 }

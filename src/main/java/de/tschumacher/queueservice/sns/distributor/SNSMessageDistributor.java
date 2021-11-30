@@ -13,10 +13,6 @@
  */
 package de.tschumacher.queueservice.sns.distributor;
 
-
-
 public interface SNSMessageDistributor<T> {
-
-  void distribute(T message);
-
+    void distribute(T message);
 }

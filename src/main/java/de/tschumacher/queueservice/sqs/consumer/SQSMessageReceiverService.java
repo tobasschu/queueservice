@@ -20,9 +20,7 @@ import de.tschumacher.queueservice.sqs.SQSQueue;
 
 public class SQSMessageReceiverService<F> extends AbstractMessageReceiverService<F> {
 
-  public SQSMessageReceiverService(final SQSQueue queue, MessageHandler<F> handler,
-      SQSMessageFactory<F> factory) {
-    super(queue, new SQSMessageReceiver<>(handler, factory));
-  }
-
+    public SQSMessageReceiverService(final SQSQueue queue, MessageHandler<F> handler, SQSMessageFactory<F> factory) {
+        super(queue, new SQSMessageReceiver<>(handler, factory));
+    }
 }

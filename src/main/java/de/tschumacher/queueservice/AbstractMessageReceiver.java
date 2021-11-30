@@ -13,52 +13,46 @@
  */
 package de.tschumacher.queueservice;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.amazonaws.services.sqs.model.Message;
-
 import de.tschumacher.queueservice.message.MessageHandler;
 import de.tschumacher.queueservice.message.SQSMessageFactory;
 import de.tschumacher.queueservice.sqs.SQSQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class AbstractMessageReceiver<F> implements MessageReceiver<F> {
-  public static final int RETRY_SECONDS = 60 * 2;
+    public static final int RETRY_SECONDS = 60 * 2;
 
-  private static final Logger logger = LoggerFactory.getLogger(AbstractMessageReceiver.class);
+    private static final Logger logger = LoggerFactory.getLogger(AbstractMessageReceiver.class);
 
-  protected final MessageHandler<F> handler;
-  protected final SQSMessageFactory<F> factory;
+    protected final MessageHandler<F> handler;
+    protected final SQSMessageFactory<F> factory;
 
-  public AbstractMessageReceiver(final MessageHandler<F> handler,
-      final SQSMessageFactory<F> factory) {
-    super();
-    this.handler = handler;
-    this.factory = factory;
-  }
-
-
-  @Override
-  public void receiveMessage(final SQSQueue queue) {
-    final Message receiveMessage = queue.receiveMessage();
-    if (receiveMessage != null) {
-      try {
-        handleMessage(queue, receiveMessage);
-      } catch (final Throwable e) {
-        logger.error("could not process message with ID {}", receiveMessage.getMessageId(), e);
-        changeVisibility(queue, receiveMessage);
-      }
+    public AbstractMessageReceiver(final MessageHandler<F> handler, final SQSMessageFactory<F> factory) {
+        super();
+        this.handler = handler;
+        this.factory = factory;
     }
-  }
 
-  protected void handleMessage(final SQSQueue queue, final Message receiveMessage) {
-    this.handler.receivedMessage(queue, this.factory.createMessage(receiveMessage.getBody()));
-    queue.deleteMessage(receiveMessage.getReceiptHandle());
-  }
+    @Override
+    public void receiveMessage(final SQSQueue queue) {
+        final Message receiveMessage = queue.receiveMessage();
+        if (receiveMessage != null) {
+            try {
+                handleMessage(queue, receiveMessage);
+            } catch (final Throwable e) {
+                logger.error("could not process message with ID {}", receiveMessage.getMessageId(), e);
+                changeVisibility(queue, receiveMessage);
+            }
+        }
+    }
 
-  private void changeVisibility(final SQSQueue queue, final Message receiveMessage) {
-    queue.changeMessageVisibility(receiveMessage.getReceiptHandle(), RETRY_SECONDS);
-  }
+    protected void handleMessage(final SQSQueue queue, final Message receiveMessage) {
+        this.handler.receivedMessage(queue, this.factory.createMessage(receiveMessage.getBody()));
+        queue.deleteMessage(receiveMessage.getReceiptHandle());
+    }
 
-
+    private void changeVisibility(final SQSQueue queue, final Message receiveMessage) {
+        queue.changeMessageVisibility(receiveMessage.getReceiptHandle(), RETRY_SECONDS);
+    }
 }

@@ -13,61 +13,55 @@
  */
 package de.tschumacher.queueservice;
 
-import java.util.concurrent.ExecutorService;
+import de.tschumacher.queueservice.sqs.SQSQueue;
 import java.util.concurrent.Executors;
-
+import java.util.concurrent.ExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import de.tschumacher.queueservice.sqs.SQSQueue;
-
 public abstract class AbstractMessageReceiverService<F> {
+    private static final Logger logger = LoggerFactory.getLogger(AbstractMessageReceiverService.class);
+    private static final int WORKER_COUNT = 5;
 
-  private static final Logger logger =
-      LoggerFactory.getLogger(AbstractMessageReceiverService.class);
-  private static final int WORKER_COUNT = 5;
+    private final ExecutorService executorService;
+    private boolean running = false;
+    private final Runnable worker;
+    private final MessageReceiver<F> messageReceiver;
 
-  private final ExecutorService executorService;
-  private boolean running = false;
-  private final Runnable worker;
-  private final MessageReceiver<F> messageReceiver;
-
-  public AbstractMessageReceiverService(final SQSQueue queue, MessageReceiver<F> messageReceiver) {
-    super();
-    this.messageReceiver = messageReceiver;
-    this.worker = newWorker(queue);
-    this.executorService = Executors.newFixedThreadPool(WORKER_COUNT);
-  }
-
-  public void start() {
-    this.running = true;
-    for (int i = 0; i < WORKER_COUNT; i++) {
-      this.executorService.submit(this.worker);
+    public AbstractMessageReceiverService(final SQSQueue queue, MessageReceiver<F> messageReceiver) {
+        super();
+        this.messageReceiver = messageReceiver;
+        this.worker = newWorker(queue);
+        this.executorService = Executors.newFixedThreadPool(WORKER_COUNT);
     }
-  }
 
-  public void stop() throws InterruptedException {
-    this.running = false;
-    this.executorService.shutdown();
-  }
-
-  private Runnable newWorker(final SQSQueue queue) {
-    return () -> {
-      while (AbstractMessageReceiverService.this.running) {
-        try {
-          AbstractMessageReceiverService.this.messageReceiver.receiveMessage(queue);
-        } catch (final Throwable e) {
-          logger.error("could not handle message", e);
+    public void start() {
+        this.running = true;
+        for (int i = 0; i < WORKER_COUNT; i++) {
+            this.executorService.submit(this.worker);
         }
-      }
+    }
 
-    };
-  }
+    public void stop() throws InterruptedException {
+        this.running = false;
+        this.executorService.shutdown();
+    }
 
-  @Override
-  protected void finalize() throws Throwable {
-    stop();
-    super.finalize();
-  }
+    private Runnable newWorker(final SQSQueue queue) {
+        return () -> {
+            while (AbstractMessageReceiverService.this.running) {
+                try {
+                    AbstractMessageReceiverService.this.messageReceiver.receiveMessage(queue);
+                } catch (final Throwable e) {
+                    logger.error("could not handle message", e);
+                }
+            }
+        };
+    }
 
+    @Override
+    protected void finalize() throws Throwable {
+        stop();
+        super.finalize();
+    }
 }

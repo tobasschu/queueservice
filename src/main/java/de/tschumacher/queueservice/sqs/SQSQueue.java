@@ -16,19 +16,17 @@ package de.tschumacher.queueservice.sqs;
 import com.amazonaws.services.sqs.model.Message;
 
 public interface SQSQueue {
+    Message receiveMessage();
 
-  Message receiveMessage();
+    void deleteMessage(String receiptHandle);
 
-  void deleteMessage(String receiptHandle);
+    void changeMessageVisibility(String receiptHandle, int retrySeconds);
 
-  void changeMessageVisibility(String receiptHandle, int retrySeconds);
+    void sendMessage(String messageBody);
 
-  void sendMessage(String messageBody);
+    void sendMessage(String messageBody, Integer delaySeconds);
 
-  void sendMessage(String messageBody, Integer delaySeconds);
+    String getQueueArn();
 
-  String getQueueArn();
-
-  void addSNSPermissions(String topicArn);
-
+    void addSNSPermissions(String topicArn);
 }

@@ -17,32 +17,26 @@ import de.tschumacher.queueservice.message.SQSMessageFactory;
 import de.tschumacher.queueservice.sqs.SQSQueue;
 
 public class SQSMessageDistributorImpl<T> implements SQSMessageDistributor<T> {
-  private final SQSQueue sqsQueue;
-  private final SQSMessageFactory<T> factory;
+    private final SQSQueue sqsQueue;
+    private final SQSMessageFactory<T> factory;
 
+    public SQSMessageDistributorImpl(SQSQueue sqsQueue, SQSMessageFactory<T> factory) {
+        super();
+        this.sqsQueue = sqsQueue;
+        this.factory = factory;
+    }
 
+    @Override
+    public void distribute(final T message) {
+        this.sqsQueue.sendMessage(createMessage(message));
+    }
 
-  public SQSMessageDistributorImpl(SQSQueue sqsQueue, SQSMessageFactory<T> factory) {
-    super();
-    this.sqsQueue = sqsQueue;
-    this.factory = factory;
-  }
+    @Override
+    public void distribute(final T message, int delay) {
+        this.sqsQueue.sendMessage(createMessage(message), delay);
+    }
 
-
-  @Override
-  public void distribute(final T message) {
-    this.sqsQueue.sendMessage(createMessage(message));
-  }
-
-
-  @Override
-  public void distribute(final T message, int delay) {
-    this.sqsQueue.sendMessage(createMessage(message), delay);
-  }
-
-
-  private String createMessage(final T message) {
-    return this.factory.createMessage(message).getContentAsString();
-  }
-
+    private String createMessage(final T message) {
+        return this.factory.createMessage(message).getContentAsString();
+    }
 }

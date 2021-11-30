@@ -16,9 +16,7 @@
 package de.tschumacher.queueservice.message.coder;
 
 public interface SQSCoder<T> {
+    public T encode(final String content);
 
-	public T encode(final String content);
-
-	public String decode(final T content);
-
+    public String decode(final T content);
 }

@@ -13,12 +13,8 @@
  */
 package de.tschumacher.queueservice.sqs.distributor;
 
-
-
 public interface SQSMessageDistributor<T> {
+    void distribute(T message);
 
-  void distribute(T message);
-
-  void distribute(T message, int delay);
-
+    void distribute(T message, int delay);
 }

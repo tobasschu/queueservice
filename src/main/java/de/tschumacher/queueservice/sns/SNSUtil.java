@@ -17,8 +17,7 @@ import com.amazonaws.services.sns.AmazonSNS;
 
 public class SNSUtil {
 
-  public static String createTopic(AmazonSNS sns, String snsName) {
-    return sns.createTopic(snsName).getTopicArn();
-  }
-
+    public static String createTopic(AmazonSNS sns, String snsName) {
+        return sns.createTopic(snsName).getTopicArn();
+    }
 }
