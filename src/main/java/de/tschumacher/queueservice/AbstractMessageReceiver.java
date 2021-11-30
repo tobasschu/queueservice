@@ -41,7 +41,7 @@ public class AbstractMessageReceiver<F> implements MessageReceiver<F> {
             try {
                 handleMessage(queue, receiveMessage);
             } catch (final Throwable e) {
-                logger.error("could not process message with ID {}", receiveMessage.getMessageId(), e);
+                logger.error("Handling message failed for ID {}: {}", receiveMessage.getMessageId(), e.getMessage(), e);
                 changeVisibility(queue, receiveMessage);
             }
         }

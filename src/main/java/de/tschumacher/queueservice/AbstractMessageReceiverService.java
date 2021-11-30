@@ -53,7 +53,7 @@ public abstract class AbstractMessageReceiverService<F> {
                 try {
                     AbstractMessageReceiverService.this.messageReceiver.receiveMessage(queue);
                 } catch (final Throwable e) {
-                    logger.error("could not handle message", e);
+                    logger.error("Receiving message failed", e);
                 }
             }
         };
