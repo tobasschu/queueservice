@@ -13,10 +13,55 @@
  */
 package de.tschumacher.queueservice.sns;
 
-public interface SNSQueue {
-    void sendMessage(String message);
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.sns.AmazonSNS;
+import com.amazonaws.services.sns.AmazonSNSAsync;
+import com.amazonaws.services.sns.AmazonSNSAsyncClientBuilder;
+import com.amazonaws.services.sns.model.CreateTopicRequest;
 
-    void subscribeSQSQueue(String queueArn);
+public class SNSQueue {
+    private final SNSQueueConfiguration configuration;
+    private final AmazonSNSAsync sns;
+    private final String topicArn;
 
-    String getTopicArn();
+    public SNSQueue(final SNSQueueConfiguration configuration) {
+        this.configuration = configuration;
+        this.sns = createAmazonSQS(configuration);
+        this.topicArn = createTopic(this.sns, configuration);
+    }
+
+    public static String createTopic(AmazonSNS sns, SNSQueueConfiguration configuration) {
+        CreateTopicRequest createTopicRequest = new CreateTopicRequest()
+            .withName(configuration.getTopicName())
+            .addAttributesEntry("FifoTopic", Boolean.toString(configuration.isFifo()));
+        return sns.createTopic(createTopicRequest).getTopicArn();
+    }
+
+    private static AmazonSNSAsync createAmazonSQS(final SNSQueueConfiguration configuration) {
+        final BasicAWSCredentials credentials = new BasicAWSCredentials(
+            configuration.getAccessKey(),
+            configuration.getSecretKey()
+        );
+
+        return AmazonSNSAsyncClientBuilder
+            .standard()
+            .withCredentials(new AWSStaticCredentialsProvider(credentials))
+            .withRegion(Regions.fromName(configuration.getDefaultRegion()))
+            .build();
+    }
+
+    public void sendMessage(String message) {
+        //TODO use SQSMessage
+        this.sns.publishAsync(this.topicArn, message);
+    }
+
+    public void subscribeSQSQueue(String queueArn) {
+        this.sns.subscribe(getTopicArn(), "sqs", queueArn);
+    }
+
+    public String getTopicArn() {
+        return this.topicArn;
+    }
 }

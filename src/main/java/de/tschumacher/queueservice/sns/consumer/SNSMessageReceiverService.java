@@ -29,6 +29,6 @@ public class SNSMessageReceiverService<F> extends AbstractMessageReceiverService
     ) {
         super(sqsQueue, new SNSMessageReceiver<>(handler, factory));
         snsQueue.subscribeSQSQueue(sqsQueue.getQueueArn());
-        sqsQueue.addSNSPermissions(snsQueue.getTopicArn());
+        sqsQueue.enableSNS(snsQueue.getTopicArn());
     }
 }

@@ -25,5 +25,6 @@ public class SQSMessage<T> {
     private String messageGroupId;
     private String receiptHandle;
     private String plainContent;
+    private int delay;
     private T content;
 }

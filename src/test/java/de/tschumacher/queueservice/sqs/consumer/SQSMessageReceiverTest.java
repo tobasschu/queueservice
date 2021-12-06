@@ -14,13 +14,11 @@
 package de.tschumacher.queueservice.sqs.consumer;
 
 import com.amazonaws.services.sqs.model.Message;
-import de.tschumacher.queueservice.AbstractMessageReceiver;
 import de.tschumacher.queueservice.DataCreator;
 import de.tschumacher.queueservice.message.MessageHandler;
 import de.tschumacher.queueservice.message.SQSMessage;
 import de.tschumacher.queueservice.message.SQSMessageFactory;
 import de.tschumacher.queueservice.message.TestDO;
-import de.tschumacher.queueservice.sqs.SQSQueue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,7 +50,7 @@ public class SQSMessageReceiverTest {
     public void receiveMessageNoneTest() {
         Mockito.when(this.queue.receiveMessage()).thenReturn(null);
 
-        this.sqsMessageReceiver.receiveMessage(this.queue);
+        this.sqsMessageReceiver.receiveMessages(this.queue);
 
         Mockito.verify(this.queue).receiveMessage();
     }
@@ -63,12 +61,12 @@ public class SQSMessageReceiverTest {
         final SQSMessage<TestDO> sqsMessage = SQSMessage.<TestDO>builder().build();
 
         Mockito.when(this.queue.receiveMessage()).thenReturn(message);
-        Mockito.when(this.factory.createMessage(message)).thenReturn(sqsMessage);
+        Mockito.when(this.factory.createSQSMessage(message)).thenReturn(sqsMessage);
 
-        this.sqsMessageReceiver.receiveMessage(this.queue);
+        this.sqsMessageReceiver.receiveMessages(this.queue);
 
         Mockito.verify(this.queue).receiveMessage();
-        Mockito.verify(this.factory).createMessage(message);
+        Mockito.verify(this.factory).createSQSMessage(message);
         Mockito.verify(this.handler).receivedMessage(this.queue, sqsMessage);
         Mockito.verify(this.queue).deleteMessage(message.getReceiptHandle());
     }
@@ -79,16 +77,14 @@ public class SQSMessageReceiverTest {
         final SQSMessage<TestDO> sqsMessage = SQSMessage.<TestDO>builder().build();
 
         Mockito.when(this.queue.receiveMessage()).thenReturn(message);
-        Mockito.when(this.factory.createMessage(message)).thenReturn(sqsMessage);
+        Mockito.when(this.factory.createSQSMessage(message)).thenReturn(sqsMessage);
         Mockito.doThrow(new RuntimeException()).when(this.handler).receivedMessage(this.queue, sqsMessage);
 
-        this.sqsMessageReceiver.receiveMessage(this.queue);
+        this.sqsMessageReceiver.receiveMessages(this.queue);
 
         Mockito.verify(this.queue).receiveMessage();
-        Mockito.verify(this.factory).createMessage(message);
+        Mockito.verify(this.factory).createSQSMessage(message);
         Mockito.verify(this.handler).receivedMessage(this.queue, sqsMessage);
-        Mockito
-            .verify(this.queue)
-            .changeMessageVisibility(message.getReceiptHandle(), AbstractMessageReceiver.RETRY_SECONDS);
+        Mockito.verify(this.queue).changeMessageVisibility(message.getReceiptHandle(), MessageReceiver.RETRY_SECONDS);
     }
 }

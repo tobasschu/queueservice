@@ -13,6 +13,20 @@
  */
 package de.tschumacher.queueservice.sns.distributor;
 
-public interface SNSMessageDistributor<T> {
-    void distribute(T message);
+import de.tschumacher.queueservice.message.SQSMessageFactory;
+import de.tschumacher.queueservice.sns.SNSQueue;
+import lombok.AllArgsConstructor;
+
+@AllArgsConstructor
+public class SNSMessageDistributor<T> {
+    private final SNSQueue snsQueue;
+    private final SQSMessageFactory<T> factory;
+
+    public void distribute(final T message) {
+        this.snsQueue.sendMessage(createMessage(message));
+    }
+
+    private String createMessage(final T message) {
+        return this.factory.createSQSMessage(message).getPlainContent();
+    }
 }

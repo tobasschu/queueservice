@@ -16,5 +16,5 @@ package de.tschumacher.queueservice;
 import de.tschumacher.queueservice.sqs.SQSQueue;
 
 public interface MessageReceiver<F> {
-    void receiveMessage(SQSQueue queue);
+    void receiveMessages(SQSQueue queue);
 }

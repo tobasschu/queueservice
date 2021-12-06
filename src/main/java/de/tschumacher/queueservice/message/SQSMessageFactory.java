@@ -17,16 +17,13 @@ package de.tschumacher.queueservice.message;
 
 import com.amazonaws.services.sqs.model.Message;
 import de.tschumacher.queueservice.message.coder.SQSCoder;
+import lombok.AllArgsConstructor;
 
+@AllArgsConstructor
 public class SQSMessageFactory<F> {
     private final SQSCoder<F> coder;
 
-    public SQSMessageFactory(SQSCoder<F> coder) {
-        super();
-        this.coder = coder;
-    }
-
-    public SQSMessage<F> createMessage(Message message) {
+    public SQSMessage<F> createSQSMessage(Message message) {
         F content = coder.encode(message.getBody());
         return SQSMessage
             .<F>builder()
@@ -38,12 +35,8 @@ public class SQSMessageFactory<F> {
             .build();
     }
 
-    public SQSMessage<F> createMessage(F body, String messageGroupId) {
+    public SQSMessage<F> createSQSMessage(F body) {
         String plainContent = coder.decode(body);
-        return SQSMessage.<F>builder().content(body).plainContent(plainContent).messageGroupId(messageGroupId).build();
-    }
-
-    public SQSMessage<F> createMessage(F body) {
-        return createMessage(body, null);
+        return SQSMessage.<F>builder().content(body).plainContent(plainContent).build();
     }
 }

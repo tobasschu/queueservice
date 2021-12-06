@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Tobias Schumacher
+ * Copyright 2021 Tobias Schumacher
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -13,11 +13,27 @@
  */
 package de.tschumacher.queueservice.sns;
 
-import com.amazonaws.services.sns.AmazonSNS;
+import com.amazonaws.regions.Regions;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NonNull;
 
-public class SNSUtil {
+@Data
+@Builder
+public class SNSQueueConfiguration {
+    @NonNull
+    private String secretKey;
 
-    public static String createTopic(AmazonSNS sns, String snsName) {
-        return sns.createTopic(snsName).getTopicArn();
+    @NonNull
+    private String accessKey;
+
+    @NonNull
+    private String topicName;
+
+    @Builder.Default
+    private String defaultRegion = Regions.EU_CENTRAL_1.getName();
+
+    public boolean isFifo() {
+        return topicName.toLowerCase().endsWith(".fifo");
     }
 }

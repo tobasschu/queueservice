@@ -16,7 +16,6 @@ package de.tschumacher.queueservice.sqs.distributor;
 import de.tschumacher.queueservice.message.coder.GsonSQSCoder;
 import de.tschumacher.queueservice.message.SQSMessageFactory;
 import de.tschumacher.queueservice.message.TestDO;
-import de.tschumacher.queueservice.sqs.SQSQueue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +30,7 @@ public class SQSMessageDistributorTest {
     public void setUp() {
         this.queue = Mockito.mock(SQSQueue.class);
         this.factory = new SQSMessageFactory<>(new GsonSQSCoder<>(TestDO.class));
-        this.sqsMessageDistributor = new SQSMessageDistributorImpl<>(this.queue, this.factory);
+        this.sqsMessageDistributor = new SQSMessageDistributor<>(this.queue, this.factory);
     }
 
     @AfterEach
@@ -45,7 +44,7 @@ public class SQSMessageDistributorTest {
 
         this.sqsMessageDistributor.distribute(message);
 
-        Mockito.verify(this.queue).sendMessage(this.factory.createMessage(message).getPlainContent());
+        Mockito.verify(this.queue).sendMessage(this.factory.createSQSMessage(message).getPlainContent());
     }
 
     @Test
@@ -55,6 +54,6 @@ public class SQSMessageDistributorTest {
 
         this.sqsMessageDistributor.distribute(message, delay);
 
-        Mockito.verify(this.queue).sendMessage(this.factory.createMessage(message).getPlainContent(), delay);
+        Mockito.verify(this.queue).sendMessage(this.factory.createSQSMessage(message).getPlainContent(), delay);
     }
 }

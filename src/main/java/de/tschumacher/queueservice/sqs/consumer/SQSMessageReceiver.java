@@ -13,14 +13,43 @@
  */
 package de.tschumacher.queueservice.sqs.consumer;
 
-import de.tschumacher.queueservice.AbstractMessageReceiver;
+import com.amazonaws.services.sqs.model.Message;
 import de.tschumacher.queueservice.message.MessageHandler;
+import de.tschumacher.queueservice.message.SQSMessage;
 import de.tschumacher.queueservice.message.SQSMessageFactory;
 import de.tschumacher.queueservice.MessageReceiver;
+import de.tschumacher.queueservice.sqs.SQSQueue;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class SQSMessageReceiver<F> extends AbstractMessageReceiver<F> implements MessageReceiver<F> {
+public class SQSMessageReceiver<F> implements MessageReceiver<F> {
+    private static final Logger logger = LoggerFactory.getLogger(SQSMessageReceiver.class);
 
-    public SQSMessageReceiver(MessageHandler<F> handler, SQSMessageFactory<F> factory) {
-        super(handler, factory);
+    private final MessageHandler<F> handler;
+    private final SQSMessageFactory<F> factory;
+
+    public SQSMessageReceiver(final MessageHandler<F> handler, final SQSMessageFactory<F> factory) {
+        super();
+        this.handler = handler;
+        this.factory = factory;
+    }
+
+    public void receiveMessages(final SQSQueue queue) {
+        final List<Message> receiveMessages = queue.receiveMessages();
+        for (Message receiveMessage : receiveMessages) {
+            handleMessage(queue, receiveMessage);
+        }
+    }
+
+    private void handleMessage(SQSQueue queue, Message receiveMessage) {
+        try {
+            SQSMessage<F> message = this.factory.createSQSMessage(receiveMessage);
+            this.handler.receivedMessage(queue, message);
+            queue.deleteMessage(receiveMessage.getReceiptHandle());
+        } catch (final Throwable e) {
+            logger.error("Handling message failed for ID {}: {}", receiveMessage.getMessageId(), e.getMessage(), e);
+            queue.retryMessage(receiveMessage.getReceiptHandle());
+        }
     }
 }

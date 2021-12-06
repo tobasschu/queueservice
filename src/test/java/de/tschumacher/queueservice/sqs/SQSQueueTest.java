@@ -48,7 +48,7 @@ public class SQSQueueTest {
         this.queueUrl = getQueueUrlResult.getQueueUrl();
         when(this.sqs.getQueueUrl(this.queueName)).thenReturn(getQueueUrlResult);
 
-        this.sqsQueue = new SQSQueueImpl(this.sqs, this.queueName);
+        this.sqsQueue = new SQSQueue(this.sqs, this.queueName);
     }
 
     @AfterEach
@@ -138,7 +138,7 @@ public class SQSQueueTest {
 
         when(this.sqs.getQueueAttributes(any(GetQueueAttributesRequest.class))).thenReturn(getQueueAttributesResult);
 
-        this.sqsQueue.addSNSPermissions(topicArn);
+        this.sqsQueue.enableSNS(topicArn);
 
         verify(this.sqs).setQueueAttributes(any(SetQueueAttributesRequest.class));
         verify(this.sqs).getQueueAttributes(any(GetQueueAttributesRequest.class));

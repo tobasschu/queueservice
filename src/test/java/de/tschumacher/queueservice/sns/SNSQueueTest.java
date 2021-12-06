@@ -39,7 +39,7 @@ public class SNSQueueTest {
 
         when(this.sns.createTopic(this.snsName)).thenReturn(createTopicResult);
 
-        this.snsQueue = new SNSQueueImpl(this.sns, this.snsName);
+        this.snsQueue = new SNSQueue(this.sns, this.snsName);
     }
 
     @AfterEach

@@ -46,7 +46,7 @@ public class SQSMessageFactoryTest {
 
         Mockito.when(this.coder.decode(message)).thenReturn(plainContent);
 
-        SQSMessage<TestDO> factoryMessage = factory.createMessage(message, messageGroupId);
+        SQSMessage<TestDO> factoryMessage = factory.createSQSMessage(message, messageGroupId);
 
         assertEquals(
             factoryMessage,
@@ -67,7 +67,7 @@ public class SQSMessageFactoryTest {
 
         Mockito.when(this.coder.encode("body1")).thenReturn(testMessage);
 
-        SQSMessage<TestDO> factoryMessage = factory.createMessage(message);
+        SQSMessage<TestDO> factoryMessage = factory.createSQSMessage(message);
 
         assertEquals(
             factoryMessage,

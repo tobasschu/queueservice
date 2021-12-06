@@ -16,7 +16,6 @@ package de.tschumacher.queueservice.sns.consumer;
 import com.amazonaws.services.sns.message.SnsMessageManager;
 import com.amazonaws.services.sns.message.SnsNotification;
 import com.amazonaws.services.sqs.model.Message;
-import de.tschumacher.queueservice.AbstractMessageReceiver;
 import de.tschumacher.queueservice.message.MessageHandler;
 import de.tschumacher.queueservice.message.SQSMessageFactory;
 import de.tschumacher.queueservice.MessageReceiver;
@@ -24,29 +23,30 @@ import de.tschumacher.queueservice.sqs.SQSQueue;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import lombok.AllArgsConstructor;
 
-public class SNSMessageReceiver<F> extends AbstractMessageReceiver<F> implements MessageReceiver<F> {
+@AllArgsConstructor
+public class SNSMessageReceiver<F> implements MessageReceiver<F> {
+    private final MessageHandler<F> handler;
+    private final SQSMessageFactory<F> factory;
     private final SnsMessageManager manager;
 
     public SNSMessageReceiver(final MessageHandler<F> handler, final SQSMessageFactory<F> factory) {
-        super(handler, factory);
-        this.manager = new SnsMessageManager();
+        this(handler, factory, new SnsMessageManager());
     }
 
-    public SNSMessageReceiver(
-        final MessageHandler<F> handler,
-        final SQSMessageFactory<F> factory,
-        final SnsMessageManager manager
-    ) {
-        super(handler, factory);
-        this.manager = manager;
+    public void receiveMessages(final SQSQueue queue) {
+        final List<Message> receiveMessages = queue.receiveMessages();
+        for (Message receiveMessage : receiveMessages) {
+            handleMessage(queue, receiveMessage);
+        }
     }
 
-    @Override
     protected void handleMessage(final SQSQueue queue, final Message receiveMessage) {
         //TODO there might be a better way
         Message message = parseSnsMessage(receiveMessage);
-        this.handler.receivedMessage(queue, this.factory.createMessage(message));
+        this.handler.receivedMessage(queue, this.factory.createSQSMessage(message));
         queue.deleteMessage(receiveMessage.getReceiptHandle());
     }
 
@@ -60,11 +60,7 @@ public class SNSMessageReceiver<F> extends AbstractMessageReceiver<F> implements
     }
 
     private SnsNotification createSnsNotification(final String message) {
-        final InputStream messageInputStream = createInputStream(message);
+        final InputStream messageInputStream = new ByteArrayInputStream(message.getBytes(StandardCharsets.UTF_8));
         return (SnsNotification) this.manager.parseMessage(messageInputStream);
-    }
-
-    private InputStream createInputStream(final String input) {
-        return new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8));
     }
 }

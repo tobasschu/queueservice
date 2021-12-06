@@ -16,7 +16,6 @@ package de.tschumacher.queueservice.sns.distributor;
 import de.tschumacher.queueservice.message.coder.GsonSQSCoder;
 import de.tschumacher.queueservice.message.SQSMessageFactory;
 import de.tschumacher.queueservice.message.TestDO;
-import de.tschumacher.queueservice.sns.SNSQueue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +30,7 @@ public class SNSMessageDistributorTest {
     public void setUp() {
         this.snsQueue = Mockito.mock(SNSQueue.class);
         this.factory = new SQSMessageFactory<>(new GsonSQSCoder<>(TestDO.class));
-        this.snsMessageDistributor = new SNSMessageDistributorImpl<>(this.snsQueue, this.factory);
+        this.snsMessageDistributor = new SNSMessageDistributor<>(this.snsQueue, this.factory);
     }
 
     @AfterEach
@@ -45,6 +44,6 @@ public class SNSMessageDistributorTest {
 
         this.snsMessageDistributor.distribute(message);
 
-        Mockito.verify(this.snsQueue).sendMessage(this.factory.createMessage(message).getPlainContent());
+        Mockito.verify(this.snsQueue).sendMessage(this.factory.createSQSMessage(message).getPlainContent());
     }
 }
