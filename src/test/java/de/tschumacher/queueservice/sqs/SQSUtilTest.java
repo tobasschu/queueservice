@@ -13,93 +13,86 @@
  */
 package de.tschumacher.queueservice.sqs;
 
-import static org.junit.Assert.assertEquals;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mockito;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.model.CreateQueueResult;
 import com.amazonaws.services.sqs.model.GetQueueUrlResult;
 import com.amazonaws.services.sqs.model.QueueDoesNotExistException;
-
-import de.tschumacher.queueservice.DataCreater;
-
+import de.tschumacher.queueservice.DataCreator;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 public class SQSUtilTest {
+    private AmazonSQS sqs;
 
-  private AmazonSQS sqs;
+    @BeforeEach
+    public void setUp() {
+        this.sqs = Mockito.mock(AmazonSQS.class);
+    }
 
-  @Before
-  public void setUp() {
-    this.sqs = Mockito.mock(AmazonSQS.class);
-  }
+    @AfterEach
+    public void shutDown() {
+        Mockito.verifyNoMoreInteractions(this.sqs);
+    }
 
-  @After
-  public void shutDown() {
-    Mockito.verifyNoMoreInteractions(this.sqs);
-  }
+    @Test
+    public void createTest() {
+        final CreateQueueResult createQueueResult = DataCreator.createCreateQueueResult();
+        final String queueName = "queueName1";
 
-  @Test
-  public void createTest() {
-    final CreateQueueResult createQueueResult = DataCreater.createCreateQueueResult();
-    final String queueName = DataCreater.createString();
+        Mockito.when(this.sqs.createQueue(queueName)).thenReturn(createQueueResult);
 
-    Mockito.when(this.sqs.createQueue(queueName)).thenReturn(createQueueResult);
+        final String createdQueueUrl = SQSUtil.create(this.sqs, queueName);
 
-    final String createdQueueUrl = SQSUtil.create(this.sqs, queueName);
+        assertEquals(createQueueResult.getQueueUrl(), createdQueueUrl);
 
-    assertEquals(createQueueResult.getQueueUrl(), createdQueueUrl);
+        Mockito.verify(this.sqs).createQueue(queueName);
+    }
 
-    Mockito.verify(this.sqs).createQueue(queueName);
-  }
+    @Test
+    public void getQueueUrlTest() {
+        final GetQueueUrlResult getQueueUrlResult = DataCreator.createGetQueueUrlResult();
+        final String queueName = "queueName1";
 
+        Mockito.when(this.sqs.getQueueUrl(queueName)).thenReturn(getQueueUrlResult);
 
-  @Test
-  public void getQueueUrlTest() {
-    final GetQueueUrlResult getQueueUrlResult = DataCreater.createGetQueueUrlResult();
-    final String queueName = DataCreater.createString();
+        final String createdQueueUrl = SQSUtil.getQueueUrl(this.sqs, queueName);
 
-    Mockito.when(this.sqs.getQueueUrl(queueName)).thenReturn(getQueueUrlResult);
+        assertEquals(getQueueUrlResult.getQueueUrl(), createdQueueUrl);
 
-    final String createdQueueUrl = SQSUtil.getQueueUrl(this.sqs, queueName);
+        Mockito.verify(this.sqs).getQueueUrl(queueName);
+    }
 
-    assertEquals(getQueueUrlResult.getQueueUrl(), createdQueueUrl);
+    @Test
+    public void createIfNotExistsExistsTest() {
+        final GetQueueUrlResult getQueueUrlResult = DataCreator.createGetQueueUrlResult();
+        final String queueName = "queueName1";
 
-    Mockito.verify(this.sqs).getQueueUrl(queueName);
-  }
+        Mockito.when(this.sqs.getQueueUrl(queueName)).thenReturn(getQueueUrlResult);
 
+        final String createdQueueUrl = SQSUtil.createIfNotExists(this.sqs, queueName);
 
-  @Test
-  public void createIfNotExistsExistsTest() {
-    final GetQueueUrlResult getQueueUrlResult = DataCreater.createGetQueueUrlResult();
-    final String queueName = DataCreater.createString();
+        assertEquals(getQueueUrlResult.getQueueUrl(), createdQueueUrl);
 
-    Mockito.when(this.sqs.getQueueUrl(queueName)).thenReturn(getQueueUrlResult);
+        Mockito.verify(this.sqs).getQueueUrl(queueName);
+    }
 
-    final String createdQueueUrl = SQSUtil.createIfNotExists(this.sqs, queueName);
+    @Test
+    public void createIfNotExistsNotExistsTest() {
+        final CreateQueueResult createQueueResult = DataCreator.createCreateQueueResult();
+        final String queueName = "queueName1";
 
-    assertEquals(getQueueUrlResult.getQueueUrl(), createdQueueUrl);
+        Mockito.when(this.sqs.getQueueUrl(queueName)).thenThrow(new QueueDoesNotExistException("queueName1"));
+        Mockito.when(this.sqs.createQueue(queueName)).thenReturn(createQueueResult);
 
-    Mockito.verify(this.sqs).getQueueUrl(queueName);
-  }
+        final String createdQueueUrl = SQSUtil.createIfNotExists(this.sqs, queueName);
 
-  @Test
-  public void createIfNotExistsNotExistsTest() {
-    final CreateQueueResult createQueueResult = DataCreater.createCreateQueueResult();
-    final String queueName = DataCreater.createString();
+        assertEquals(createQueueResult.getQueueUrl(), createdQueueUrl);
 
-    Mockito.when(this.sqs.getQueueUrl(queueName))
-        .thenThrow(new QueueDoesNotExistException(DataCreater.createString()));
-    Mockito.when(this.sqs.createQueue(queueName)).thenReturn(createQueueResult);
-
-    final String createdQueueUrl = SQSUtil.createIfNotExists(this.sqs, queueName);
-
-    assertEquals(createQueueResult.getQueueUrl(), createdQueueUrl);
-
-    Mockito.verify(this.sqs).getQueueUrl(queueName);
-    Mockito.verify(this.sqs).createQueue(queueName);
-  }
+        Mockito.verify(this.sqs).getQueueUrl(queueName);
+        Mockito.verify(this.sqs).createQueue(queueName);
+    }
 }

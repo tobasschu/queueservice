@@ -13,63 +13,74 @@
  */
 package de.tschumacher.queueservice.message;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import com.amazonaws.services.sqs.model.Message;
+import de.tschumacher.queueservice.message.coder.SQSCoder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import de.tschumacher.queueservice.DataCreater;
-import de.tschumacher.queueservice.message.coder.SQSCoder;
-
-
 public class SQSMessageFactoryTest {
-  private SQSMessage<TestMessage> sqsMessage;
-  private SQSCoder<TestMessage> coder;
+    private SQSMessageFactory<TestDO> factory;
+    private SQSCoder<TestDO> coder;
 
+    @SuppressWarnings("unchecked")
+    @BeforeEach
+    public void setUp() {
+        this.coder = Mockito.mock(SQSCoder.class);
+        this.factory = new SQSMessageFactory<>(coder);
+    }
 
+    @AfterEach
+    public void shutDown() {
+        Mockito.verifyNoMoreInteractions(this.coder);
+    }
 
-  @SuppressWarnings("unchecked")
-  @Before
-  public void setUp() {
-    this.coder = Mockito.mock(SQSCoder.class);
-  }
+    @Test
+    public void decodeMessageTest() {
+        final String messageGroupId = "messageGroupId1";
+        String plainContent = "plainContent1";
+        final TestDO message = new TestDO("test1");
 
-  @After
-  public void shutDown() {
-    Mockito.verifyNoMoreInteractions(this.coder);
-  }
+        Mockito.when(this.coder.decode(message)).thenReturn(plainContent);
 
-  @Test
-  public void encodeTest() {
-    final String content = DataCreater.createString();
-    final TestMessage message = new TestMessage(DataCreater.createString());
+        SQSMessage<TestDO> factoryMessage = factory.createMessage(message, messageGroupId);
 
-    Mockito.when(this.coder.encode(content)).thenReturn(message);
+        assertEquals(
+            factoryMessage,
+            SQSMessage.builder().content(message).plainContent(plainContent).messageGroupId(messageGroupId).build()
+        );
 
-    this.sqsMessage = new SQSMessage<>(this.coder, content);
+        Mockito.verify(this.coder).decode(message);
+    }
 
-    assertEquals(message, this.sqsMessage.getContent());
+    @Test
+    public void decodeTest() {
+        final TestDO testMessage = new TestDO("test1");
+        final Message message = new Message()
+            .withMessageId("messageId1")
+            .withBody("body1")
+            .withReceiptHandle("handle1")
+            .addAttributesEntry("MessageGroupId", "messageGroupId1");
 
-    Mockito.verify(this.coder).encode(content);
+        Mockito.when(this.coder.encode("body1")).thenReturn(testMessage);
 
-  }
+        SQSMessage<TestDO> factoryMessage = factory.createMessage(message);
 
+        assertEquals(
+            factoryMessage,
+            SQSMessage
+                .builder()
+                .content(testMessage)
+                .plainContent(message.getBody())
+                .messageId("messageId1")
+                .receiptHandle("handle1")
+                .messageGroupId("messageGroupId1")
+                .build()
+        );
 
-  @Test
-  public void decodeTest() {
-    final String content = DataCreater.createString();
-    final TestMessage message = new TestMessage(DataCreater.createString());
-
-    Mockito.when(this.coder.decode(message)).thenReturn(content);
-
-    this.sqsMessage = new SQSMessage<>(this.coder, message);
-
-    assertEquals(content, this.sqsMessage.getContentAsString());
-
-    Mockito.verify(this.coder).decode(message);
-
-  }
-
+        Mockito.verify(this.coder).encode(message.getBody());
+    }
 }

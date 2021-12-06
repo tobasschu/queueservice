@@ -13,88 +13,82 @@
  */
 package de.tschumacher.queueservice.sqs.consumer;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mockito;
-
 import com.amazonaws.services.sqs.model.Message;
-
 import de.tschumacher.queueservice.AbstractMessageReceiver;
-import de.tschumacher.queueservice.DataCreater;
+import de.tschumacher.queueservice.DataCreator;
 import de.tschumacher.queueservice.message.MessageHandler;
 import de.tschumacher.queueservice.message.SQSMessage;
 import de.tschumacher.queueservice.message.SQSMessageFactory;
-import de.tschumacher.queueservice.message.TestMessage;
+import de.tschumacher.queueservice.message.TestDO;
 import de.tschumacher.queueservice.sqs.SQSQueue;
-
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 public class SQSMessageReceiverTest {
+    private SQSMessageFactory<TestDO> factory;
+    private MessageHandler<TestDO> handler;
+    private SQSMessageReceiver<TestDO> sqsMessageReceiver;
+    private SQSQueue queue;
 
-  private SQSMessageFactory<TestMessage> factory;
-  private MessageHandler<TestMessage> handler;
-  private SQSMessageReceiver<TestMessage> sqsMessageReceiver;
-  private SQSQueue queue;
+    @SuppressWarnings("unchecked")
+    @BeforeEach
+    public void setUp() {
+        this.queue = Mockito.mock(SQSQueue.class);
+        this.handler = Mockito.mock(MessageHandler.class);
+        this.factory = Mockito.mock(SQSMessageFactory.class);
+        this.sqsMessageReceiver = new SQSMessageReceiver<>(this.handler, this.factory);
+    }
 
-  @SuppressWarnings("unchecked")
-  @Before
-  public void setUp() {
-    this.queue = Mockito.mock(SQSQueue.class);
-    this.handler = Mockito.mock(MessageHandler.class);
-    this.factory = Mockito.mock(SQSMessageFactory.class);
-    this.sqsMessageReceiver = new SQSMessageReceiver<>(this.handler, this.factory);
+    @AfterEach
+    public void shutDown() {
+        Mockito.verifyNoMoreInteractions(this.queue);
+        Mockito.verifyNoMoreInteractions(this.handler);
+        Mockito.verifyNoMoreInteractions(this.factory);
+    }
 
-  }
+    @Test
+    public void receiveMessageNoneTest() {
+        Mockito.when(this.queue.receiveMessage()).thenReturn(null);
 
-  @After
-  public void shutDown() {
-    Mockito.verifyNoMoreInteractions(this.queue);
-    Mockito.verifyNoMoreInteractions(this.handler);
-    Mockito.verifyNoMoreInteractions(this.factory);
-  }
+        this.sqsMessageReceiver.receiveMessage(this.queue);
 
-  @Test
-  public void receiveMessageNoneTest() {
-    Mockito.when(this.queue.receiveMessage()).thenReturn(null);
+        Mockito.verify(this.queue).receiveMessage();
+    }
 
-    this.sqsMessageReceiver.receiveMessage(this.queue);
+    @Test
+    public void receiveMessageTest() {
+        final Message message = DataCreator.createMessage();
+        final SQSMessage<TestDO> sqsMessage = SQSMessage.<TestDO>builder().build();
 
-    Mockito.verify(this.queue).receiveMessage();
-  }
+        Mockito.when(this.queue.receiveMessage()).thenReturn(message);
+        Mockito.when(this.factory.createMessage(message)).thenReturn(sqsMessage);
 
-  @Test
-  public void receiveMessageTest() {
-    final Message message = DataCreater.createMessage();
-    final SQSMessage<TestMessage> sqsMessage = DataCreater.createSQSMessage();
+        this.sqsMessageReceiver.receiveMessage(this.queue);
 
-    Mockito.when(this.queue.receiveMessage()).thenReturn(message);
-    Mockito.when(this.factory.createMessage(message.getBody())).thenReturn(sqsMessage);
+        Mockito.verify(this.queue).receiveMessage();
+        Mockito.verify(this.factory).createMessage(message);
+        Mockito.verify(this.handler).receivedMessage(this.queue, sqsMessage);
+        Mockito.verify(this.queue).deleteMessage(message.getReceiptHandle());
+    }
 
+    @Test
+    public void receiveMessageFailTest() {
+        final Message message = DataCreator.createMessage();
+        final SQSMessage<TestDO> sqsMessage = SQSMessage.<TestDO>builder().build();
 
-    this.sqsMessageReceiver.receiveMessage(this.queue);
+        Mockito.when(this.queue.receiveMessage()).thenReturn(message);
+        Mockito.when(this.factory.createMessage(message)).thenReturn(sqsMessage);
+        Mockito.doThrow(new RuntimeException()).when(this.handler).receivedMessage(this.queue, sqsMessage);
 
-    Mockito.verify(this.queue).receiveMessage();
-    Mockito.verify(this.factory).createMessage(message.getBody());
-    Mockito.verify(this.handler).receivedMessage(this.queue, sqsMessage);
-    Mockito.verify(this.queue).deleteMessage(message.getReceiptHandle());
-  }
+        this.sqsMessageReceiver.receiveMessage(this.queue);
 
-
-  @Test
-  public void receiveMessageFailTest() {
-    final Message message = DataCreater.createMessage();
-    final SQSMessage<TestMessage> sqsMessage = DataCreater.createSQSMessage();
-
-    Mockito.when(this.queue.receiveMessage()).thenReturn(message);
-    Mockito.when(this.factory.createMessage(message.getBody())).thenReturn(sqsMessage);
-    Mockito.doThrow(Throwable.class).when(this.handler).receivedMessage(this.queue, sqsMessage);
-
-    this.sqsMessageReceiver.receiveMessage(this.queue);
-
-    Mockito.verify(this.queue).receiveMessage();
-    Mockito.verify(this.factory).createMessage(message.getBody());
-    Mockito.verify(this.handler).receivedMessage(this.queue, sqsMessage);
-    Mockito.verify(this.queue).changeMessageVisibility(message.getReceiptHandle(),
-        AbstractMessageReceiver.RETRY_SECONDS);
-  }
+        Mockito.verify(this.queue).receiveMessage();
+        Mockito.verify(this.factory).createMessage(message);
+        Mockito.verify(this.handler).receivedMessage(this.queue, sqsMessage);
+        Mockito
+            .verify(this.queue)
+            .changeMessageVisibility(message.getReceiptHandle(), AbstractMessageReceiver.RETRY_SECONDS);
+    }
 }

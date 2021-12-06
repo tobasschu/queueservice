@@ -13,46 +13,40 @@
  */
 package de.tschumacher.queueservice.sns;
 
-import static de.tschumacher.queueservice.DataCreater.*;
-import static org.junit.Assert.*;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mockito;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.amazonaws.services.sns.AmazonSNS;
 import com.amazonaws.services.sns.model.CreateTopicResult;
-
-import de.tschumacher.queueservice.DataCreater;
-
-
+import de.tschumacher.queueservice.DataCreator;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 public class SNSUtilTest {
+    private AmazonSNS sns;
 
-  private AmazonSNS sns;
+    @BeforeEach
+    public void setUp() {
+        this.sns = Mockito.mock(AmazonSNS.class);
+    }
 
-  @Before
-  public void setUp() {
-    this.sns = Mockito.mock(AmazonSNS.class);
-  }
+    @AfterEach
+    public void shutDown() {
+        Mockito.verifyNoMoreInteractions(this.sns);
+    }
 
-  @After
-  public void shutDown() {
-    Mockito.verifyNoMoreInteractions(this.sns);
-  }
+    @Test
+    public void createTest() {
+        final CreateTopicResult createTopicResult = DataCreator.createCreateTopicResult();
+        final String snsName = "snsName1";
 
-  @Test
-  public void createTest() {
-    final CreateTopicResult createTopicResult = DataCreater.createCreateTopicResult();
-    final String snsName = createString();
+        Mockito.when(this.sns.createTopic(snsName)).thenReturn(createTopicResult);
 
-    Mockito.when(this.sns.createTopic(snsName)).thenReturn(createTopicResult);
+        final String createdTopicArn = SNSUtil.createTopic(this.sns, snsName);
 
-    final String createdTopicArn = SNSUtil.createTopic(this.sns, snsName);
+        assertEquals(createTopicResult.getTopicArn(), createdTopicArn);
 
-    assertEquals(createTopicResult.getTopicArn(), createdTopicArn);
-
-    Mockito.verify(this.sns).createTopic(snsName);
-  }
+        Mockito.verify(this.sns).createTopic(snsName);
+    }
 }

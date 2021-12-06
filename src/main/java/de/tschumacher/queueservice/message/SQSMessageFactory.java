@@ -15,21 +15,35 @@
  */
 package de.tschumacher.queueservice.message;
 
+import com.amazonaws.services.sqs.model.Message;
 import de.tschumacher.queueservice.message.coder.SQSCoder;
 
 public class SQSMessageFactory<F> {
     private final SQSCoder<F> coder;
 
-    public SQSMessageFactory(final SQSCoder<F> coder) {
+    public SQSMessageFactory(SQSCoder<F> coder) {
         super();
         this.coder = coder;
     }
 
-    public SQSMessage<F> createMessage(final String body) {
-        return new SQSMessage<F>(this.coder, body);
+    public SQSMessage<F> createMessage(Message message) {
+        F content = coder.encode(message.getBody());
+        return SQSMessage
+            .<F>builder()
+            .content(content)
+            .plainContent(message.getBody())
+            .messageId(message.getMessageId())
+            .messageGroupId(message.getAttributes().get("MessageGroupId"))
+            .receiptHandle(message.getReceiptHandle())
+            .build();
     }
 
-    public SQSMessage<F> createMessage(final F body) {
-        return new SQSMessage<F>(this.coder, body);
+    public SQSMessage<F> createMessage(F body, String messageGroupId) {
+        String plainContent = coder.decode(body);
+        return SQSMessage.<F>builder().content(body).plainContent(plainContent).messageGroupId(messageGroupId).build();
+    }
+
+    public SQSMessage<F> createMessage(F body) {
+        return createMessage(body, null);
     }
 }

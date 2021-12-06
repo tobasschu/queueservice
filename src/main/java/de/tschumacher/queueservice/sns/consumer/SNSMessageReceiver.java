@@ -33,11 +33,30 @@ public class SNSMessageReceiver<F> extends AbstractMessageReceiver<F> implements
         this.manager = new SnsMessageManager();
     }
 
+    public SNSMessageReceiver(
+        final MessageHandler<F> handler,
+        final SQSMessageFactory<F> factory,
+        final SnsMessageManager manager
+    ) {
+        super(handler, factory);
+        this.manager = manager;
+    }
+
     @Override
     protected void handleMessage(final SQSQueue queue, final Message receiveMessage) {
-        final SnsNotification notification = createSnsNotification(receiveMessage.getBody());
-        this.handler.receivedMessage(queue, this.factory.createMessage(notification.getMessage()));
+        //TODO there might be a better way
+        Message message = parseSnsMessage(receiveMessage);
+        this.handler.receivedMessage(queue, this.factory.createMessage(message));
         queue.deleteMessage(receiveMessage.getReceiptHandle());
+    }
+
+    private Message parseSnsMessage(Message receiveMessage) {
+        final SnsNotification notification = createSnsNotification(receiveMessage.getBody());
+        return new Message()
+            .withMessageId(receiveMessage.getMessageId())
+            .withBody(notification.getMessage())
+            .withReceiptHandle(receiveMessage.getReceiptHandle())
+            .addAttributesEntry("MessageGroupId", receiveMessage.getAttributes().get("MessageGroupId"));
     }
 
     private SnsNotification createSnsNotification(final String message) {

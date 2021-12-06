@@ -48,7 +48,7 @@ public class AbstractMessageReceiver<F> implements MessageReceiver<F> {
     }
 
     protected void handleMessage(final SQSQueue queue, final Message receiveMessage) {
-        this.handler.receivedMessage(queue, this.factory.createMessage(receiveMessage.getBody()));
+        this.handler.receivedMessage(queue, this.factory.createMessage(receiveMessage));
         queue.deleteMessage(receiveMessage.getReceiptHandle());
     }
 

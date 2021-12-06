@@ -13,36 +13,36 @@
  */
 package de.tschumacher.queueservice.message.coder;
 
-import static org.junit.Assert.assertEquals;
 
-import org.junit.Before;
-import org.junit.Test;
+import de.tschumacher.queueservice.message.TestDO;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import de.tschumacher.queueservice.DataCreater;
-import de.tschumacher.queueservice.message.TestMessage;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 
 public class GsonSQSCoderTest {
-  private GsonSQSCoder<TestMessage> coder;
+  private GsonSQSCoder<TestDO> coder;
   private Gson gson;
 
 
-  @Before
+  @BeforeEach
   public void setUp() {
     this.gson = new GsonBuilder().create();
-    this.coder = new GsonSQSCoder<>(this.gson, TestMessage.class);
+    this.coder = new GsonSQSCoder<>(this.gson, TestDO.class);
   }
 
 
   @Test
-  public void decodeTest() {
-
-    final TestMessage message = new TestMessage(DataCreater.createString());
+    public void decodeTest() {
+    final TestDO message = new TestDO("test1");
 
     final String decodeMessage = this.coder.decode(message);
+    System.out.println(this.gson.toJson(message));
 
     assertEquals(this.gson.toJson(message), decodeMessage);
 
@@ -51,15 +51,14 @@ public class GsonSQSCoderTest {
   @Test
   public void encodeTest() {
 
-    final TestMessage message = new TestMessage(DataCreater.createString());
+    final TestDO message = new TestDO("test1");
     final String decodedMessage = this.gson.toJson(message);
 
 
-    final TestMessage encodedMessage = this.coder.encode(decodedMessage);
+    final TestDO encodedMessage = this.coder.encode(decodedMessage);
 
-    assertEquals(this.gson.fromJson(decodedMessage, TestMessage.class).getContent(),
+    assertEquals(this.gson.fromJson(decodedMessage, TestDO.class).getContent(),
         encodedMessage.getContent());
-
   }
 
 

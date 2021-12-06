@@ -13,56 +13,48 @@
  */
 package de.tschumacher.queueservice.sqs.distributor;
 
-import static de.tschumacher.queueservice.DataCreater.*;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import de.tschumacher.queueservice.message.coder.GsonSQSCoder;
+import de.tschumacher.queueservice.message.SQSMessageFactory;
+import de.tschumacher.queueservice.message.TestDO;
+import de.tschumacher.queueservice.sqs.SQSQueue;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import de.tschumacher.queueservice.message.SQSMessageFactory;
-import de.tschumacher.queueservice.message.TestMessage;
-import de.tschumacher.queueservice.message.coder.GsonSQSCoder;
-import de.tschumacher.queueservice.sqs.SQSQueue;
-
-
 public class SQSMessageDistributorTest {
+    private SQSMessageFactory<TestDO> factory;
+    private SQSMessageDistributor<TestDO> sqsMessageDistributor;
+    private SQSQueue queue;
 
-  private SQSMessageFactory<TestMessage> factory;
-  private SQSMessageDistributor<TestMessage> sqsMessageDistributor;
-  private SQSQueue queue;
+    @BeforeEach
+    public void setUp() {
+        this.queue = Mockito.mock(SQSQueue.class);
+        this.factory = new SQSMessageFactory<>(new GsonSQSCoder<>(TestDO.class));
+        this.sqsMessageDistributor = new SQSMessageDistributorImpl<>(this.queue, this.factory);
+    }
 
+    @AfterEach
+    public void shutDown() {
+        Mockito.verifyNoMoreInteractions(this.queue);
+    }
 
-  @Before
-  public void setUp() {
-    this.queue = Mockito.mock(SQSQueue.class);
-    this.factory = new SQSMessageFactory<>(new GsonSQSCoder<>(TestMessage.class));
-    this.sqsMessageDistributor = new SQSMessageDistributorImpl<>(this.queue, this.factory);
-  }
+    @Test
+    public void distributeTest() {
+        final TestDO message = new TestDO("testDO1");
 
-  @After
-  public void shutDown() {
-    Mockito.verifyNoMoreInteractions(this.queue);
-  }
+        this.sqsMessageDistributor.distribute(message);
 
-  @Test
-  public void distributeTest() {
-    final TestMessage message = createTestMessage();
+        Mockito.verify(this.queue).sendMessage(this.factory.createMessage(message).getPlainContent());
+    }
 
-    this.sqsMessageDistributor.distribute(message);
+    @Test
+    public void distributeDelayedTest() {
+        final TestDO message = new TestDO("testDO1");
+        final int delay = 5;
 
-    Mockito.verify(this.queue)
-        .sendMessage(this.factory.createMessage(message).getContentAsString());
-  }
+        this.sqsMessageDistributor.distribute(message, delay);
 
-  @Test
-  public void distributeDelayedTest() {
-    final TestMessage message = createTestMessage();
-    final int delay = createInteger();
-
-    this.sqsMessageDistributor.distribute(message, delay);
-
-    Mockito.verify(this.queue).sendMessage(this.factory.createMessage(message).getContentAsString(),
-        delay);
-  }
+        Mockito.verify(this.queue).sendMessage(this.factory.createMessage(message).getPlainContent(), delay);
+    }
 }

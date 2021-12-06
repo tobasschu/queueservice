@@ -37,6 +37,6 @@ public class SQSMessageDistributorImpl<T> implements SQSMessageDistributor<T> {
     }
 
     private String createMessage(final T message) {
-        return this.factory.createMessage(message).getContentAsString();
+        return this.factory.createMessage(message).getPlainContent();
     }
 }
