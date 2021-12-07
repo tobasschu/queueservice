@@ -44,7 +44,6 @@ public class SNSMessageReceiver<F> implements MessageReceiver<F> {
     }
 
     protected void handleMessage(final SQSQueue queue, final Message receiveMessage) {
-        //TODO there might be a better way
         Message message = parseSnsMessage(receiveMessage);
         this.handler.receivedMessage(queue, this.factory.createSQSMessage(message));
         queue.deleteMessage(receiveMessage.getReceiptHandle());
