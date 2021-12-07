@@ -19,15 +19,20 @@ import com.amazonaws.services.sqs.model.Message;
 import de.tschumacher.queueservice.message.MessageHandler;
 import de.tschumacher.queueservice.message.SQSMessageFactory;
 import de.tschumacher.queueservice.MessageReceiver;
+import de.tschumacher.queueservice.sqs.consumer.SQSMessageReceiver;
 import de.tschumacher.queueservice.sqs.SQSQueue;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.AllArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AllArgsConstructor
 public class SNSMessageReceiver<F> implements MessageReceiver<F> {
+    private static final Logger logger = LoggerFactory.getLogger(SNSMessageReceiver.class);
+
     private final MessageHandler<F> handler;
     private final SQSMessageFactory<F> factory;
     private final SnsMessageManager manager;
@@ -44,9 +49,14 @@ public class SNSMessageReceiver<F> implements MessageReceiver<F> {
     }
 
     protected void handleMessage(final SQSQueue queue, final Message receiveMessage) {
-        Message message = parseSnsMessage(receiveMessage);
-        this.handler.receivedMessage(queue, this.factory.createSQSMessage(message));
-        queue.deleteMessage(receiveMessage.getReceiptHandle());
+        try {
+            Message message = parseSnsMessage(receiveMessage);
+            this.handler.receivedMessage(queue, this.factory.createSQSMessage(message));
+            queue.deleteMessage(receiveMessage.getReceiptHandle());
+        } catch (final Throwable e) {
+            logger.error("Handling message failed for ID {}: {}", receiveMessage.getMessageId(), e.getMessage(), e);
+            queue.retryMessage(receiveMessage.getReceiptHandle());
+        }
     }
 
     private Message parseSnsMessage(Message receiveMessage) {
