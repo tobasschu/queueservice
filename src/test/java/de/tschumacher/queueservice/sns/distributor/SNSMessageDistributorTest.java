@@ -56,4 +56,23 @@ public class SNSMessageDistributorTest {
                 SQSMessage.<TestDO>builder().plainContent("{\"content\":\"testDO1\"}").content(message).build()
             );
     }
+
+    @Test
+    public void shouldDistributeMessageWithMessageGroupId() {
+        final TestDO message = new TestDO("testDO1");
+        String messageGroupId = "messageGroupId1";
+
+        this.snsMessageDistributor.distribute(message, messageGroupId);
+
+        Mockito
+            .verify(this.snsQueue)
+            .sendMessage(
+                SQSMessage
+                    .<TestDO>builder()
+                    .plainContent("{\"content\":\"testDO1\"}")
+                    .content(message)
+                    .messageGroupId(messageGroupId)
+                    .build()
+            );
+    }
 }
