@@ -13,145 +13,243 @@
  */
 package de.tschumacher.queueservice.sqs;
 
-import static de.tschumacher.queueservice.DataCreator.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.*;
 
+import com.amazonaws.auth.policy.actions.SQSActions;
+import com.amazonaws.auth.policy.conditions.ArnCondition;
+import com.amazonaws.auth.policy.conditions.ConditionFactory;
+import com.amazonaws.auth.policy.Policy;
+import com.amazonaws.auth.policy.Principal;
+import com.amazonaws.auth.policy.Resource;
+import com.amazonaws.auth.policy.Statement;
 import com.amazonaws.services.sqs.AmazonSQSAsync;
-import com.amazonaws.services.sqs.model.GetQueueAttributesRequest;
-import com.amazonaws.services.sqs.model.GetQueueAttributesResult;
-import com.amazonaws.services.sqs.model.GetQueueUrlResult;
-import com.amazonaws.services.sqs.model.Message;
-import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
-import com.amazonaws.services.sqs.model.ReceiveMessageResult;
-import com.amazonaws.services.sqs.model.SendMessageRequest;
-import com.amazonaws.services.sqs.model.SetQueueAttributesRequest;
+import com.amazonaws.services.sqs.model.*;
+import de.tschumacher.queueservice.message.SQSMessage;
+import de.tschumacher.queueservice.message.TestDO;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
+import org.mockito.*;
 
 public class SQSQueueTest {
     private SQSQueue sqsQueue;
+
+    @Mock
     private AmazonSQSAsync sqs;
-    private String queueName;
-    private String queueUrl;
+
+    private final String queueUrl = "queueUrl1";
+    private SQSQueueConfiguration configuration;
 
     @BeforeEach
     public void setUp() {
-        this.queueName = "queueName1";
-        this.sqs = Mockito.mock(AmazonSQSAsync.class);
+        MockitoAnnotations.openMocks(this);
+        configuration =
+            SQSQueueConfiguration
+                .builder()
+                .queueName("queueName1")
+                .secretKey("secretKey1")
+                .accessKey("accessKey1")
+                .build();
 
-        final GetQueueUrlResult getQueueUrlResult = createGetQueueUrlResult();
-        this.queueUrl = getQueueUrlResult.getQueueUrl();
-        when(this.sqs.getQueueUrl(this.queueName)).thenReturn(getQueueUrlResult);
+        when(this.sqs.getQueueUrl("queueName1")).thenReturn(new GetQueueUrlResult().withQueueUrl(queueUrl));
 
-        this.sqsQueue = new SQSQueue(this.sqs, this.queueName);
+        this.sqsQueue = new SQSQueue(configuration, this.sqs);
     }
 
     @AfterEach
     public void shutDown() {
-        verify(this.sqs).getQueueUrl(this.queueName);
+        verify(this.sqs).getQueueUrl("queueName1");
         verifyNoMoreInteractions(this.sqs);
     }
 
     @Test
-    public void sendMessageTest() {
-        final String messageBody = "messageBody1";
+    public void shouldCreateStandardQueue() {
+        SQSQueueConfiguration configuration = SQSQueueConfiguration
+            .builder()
+            .queueName("queueName2")
+            .secretKey("secretKey1")
+            .accessKey("accessKey1")
+            .build();
 
-        this.sqsQueue.sendMessage(messageBody);
+        when(this.sqs.getQueueUrl("queueName2")).thenThrow(new QueueDoesNotExistException("queueName2"));
+        when(
+                this.sqs.createQueue(
+                        new CreateQueueRequest().withQueueName("queueName2").addAttributesEntry("FifoQueue", "false")
+                    )
+            )
+            .thenReturn(new CreateQueueResult().withQueueUrl("queueUrl2"));
 
-        verifySendMessageRequest(messageBody, null);
+        this.sqsQueue = new SQSQueue(configuration, this.sqs);
+
+        verify(this.sqs).getQueueUrl("queueName2");
+        verify(this.sqs)
+            .createQueue(new CreateQueueRequest().withQueueName("queueName2").addAttributesEntry("FifoQueue", "false"));
     }
 
     @Test
-    public void sendMessageWithDelaySecondsTest() {
-        final String messageBody = "messageBody1";
-        final Integer delaySeconds = 5;
+    public void shouldCreateFifoQueue() {
+        SQSQueueConfiguration configuration = SQSQueueConfiguration
+            .builder()
+            .queueName("queueName.fifo")
+            .secretKey("secretKey1")
+            .accessKey("accessKey1")
+            .build();
 
-        this.sqsQueue.sendMessage(messageBody, delaySeconds);
+        when(this.sqs.getQueueUrl("queueName.fifo")).thenThrow(new QueueDoesNotExistException("queueName.fifo"));
+        when(
+                this.sqs.createQueue(
+                        new CreateQueueRequest().withQueueName("queueName.fifo").addAttributesEntry("FifoQueue", "true")
+                    )
+            )
+            .thenReturn(new CreateQueueResult().withQueueUrl("queueUrl2"));
 
-        verifySendMessageRequest(messageBody, delaySeconds);
+        this.sqsQueue = new SQSQueue(configuration, this.sqs);
+
+        verify(this.sqs).getQueueUrl("queueName.fifo");
+        verify(this.sqs)
+            .createQueue(
+                new CreateQueueRequest().withQueueName("queueName.fifo").addAttributesEntry("FifoQueue", "true")
+            );
     }
 
     @Test
-    public void changeMessageVisibilityTest() {
-        final String receiptHandle = "receiptHandle1";
-        final Integer retrySeconds = 5;
+    public void shouldSendMessage() {
+        final SQSMessage<TestDO> message = SQSMessage
+            .<TestDO>builder()
+            .plainContent("content1")
+            .messageGroupId("messageGroupId1")
+            .delay(5)
+            .build();
 
-        this.sqsQueue.changeMessageVisibility(receiptHandle, retrySeconds);
+        this.sqsQueue.sendMessage(message);
 
-        verify(this.sqs).changeMessageVisibility(this.queueUrl, receiptHandle, retrySeconds);
+        SendMessageRequest expectedSendRequest = new SendMessageRequest()
+            .withQueueUrl(queueUrl)
+            .withMessageBody("content1")
+            .withDelaySeconds(5)
+            .withMessageGroupId("messageGroupId1");
+
+        verify(this.sqs).sendMessageAsync(expectedSendRequest);
     }
 
     @Test
-    public void deleteMessageTest() {
+    public void shouldDeleteMessage() {
         final String receiptHandle = "receiptHandle1";
 
         this.sqsQueue.deleteMessage(receiptHandle);
 
-        verify(this.sqs).deleteMessage(this.queueUrl, receiptHandle);
+        verify(this.sqs)
+            .deleteMessage(new DeleteMessageRequest().withQueueUrl("queueUrl1").withReceiptHandle(receiptHandle));
     }
 
     @Test
-    public void getQueueArnTest() {
-        final GetQueueAttributesResult getQueueAttributesResult = createGetQueueAttributesResult();
-        when(this.sqs.getQueueAttributes(any(GetQueueAttributesRequest.class))).thenReturn(getQueueAttributesResult);
+    public void shouldRetryMessage() {
+        final String receiptHandle = "receiptHandle1";
+
+        this.sqsQueue.retryMessage(receiptHandle);
+
+        verify(this.sqs)
+            .changeMessageVisibility(
+                new ChangeMessageVisibilityRequest()
+                    .withQueueUrl(queueUrl)
+                    .withReceiptHandle(receiptHandle)
+                    .withVisibilityTimeout(configuration.getRetrySeconds())
+            );
+    }
+
+    @Test
+    public void shouldReturnQueueArn() {
+        GetQueueAttributesRequest getQueueAttributesRequest = new GetQueueAttributesRequest()
+            .withQueueUrl(queueUrl)
+            .withAttributeNames("QueueArn");
+        when(this.sqs.getQueueAttributes(getQueueAttributesRequest))
+            .thenReturn(new GetQueueAttributesResult().addAttributesEntry("QueueArn", "queueArn1"));
 
         final String queueArn = this.sqsQueue.getQueueArn();
 
-        assertEquals(getQueueAttributesResult.getAttributes().get("QueueArn"), queueArn);
+        assertEquals("queueArn1", queueArn);
 
-        verify(this.sqs).getQueueAttributes(any(GetQueueAttributesRequest.class));
+        verify(this.sqs).getQueueAttributes(getQueueAttributesRequest);
     }
 
     @Test
-    public void receiveMessageTest() {
-        final ReceiveMessageResult receiveMessageResult = createReceiveMessageResult();
+    public void shouldReceiveMessages() {
+        List<Message> messages = Arrays.asList(
+            new Message().withMessageId("messageId1"),
+            new Message().withMessageId("messageId2")
+        );
 
-        when(this.sqs.receiveMessage(any(ReceiveMessageRequest.class))).thenReturn(receiveMessageResult);
+        ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(queueUrl)
+            .withWaitTimeSeconds(configuration.getWaitTimeSeconds())
+            .withMaxNumberOfMessages(configuration.getMaxNumberOfMessages())
+            .withVisibilityTimeout(configuration.getVisibilityTimeout());
 
-        final Message resultReceiveMessage = this.sqsQueue.receiveMessage();
+        when(this.sqs.receiveMessage(receiveMessageRequest))
+            .thenReturn(new ReceiveMessageResult().withMessages(messages));
 
-        assertEquals(receiveMessageResult.getMessages().get(0), resultReceiveMessage);
+        final List<Message> receivedMessages = this.sqsQueue.receiveMessages();
 
-        verify(this.sqs).receiveMessage(any(ReceiveMessageRequest.class));
+        assertEquals(messages, receivedMessages);
+
+        verify(this.sqs).receiveMessage(receiveMessageRequest);
     }
 
     @Test
-    public void receiveEmptyMessageTest() {
-        when(this.sqs.receiveMessage(any(ReceiveMessageRequest.class))).thenReturn(new ReceiveMessageResult());
+    public void shouldReceiveEmptyMessages() {
+        ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(queueUrl)
+            .withWaitTimeSeconds(configuration.getWaitTimeSeconds())
+            .withMaxNumberOfMessages(configuration.getMaxNumberOfMessages())
+            .withVisibilityTimeout(configuration.getVisibilityTimeout());
 
-        final Message resultReceiveMessage = this.sqsQueue.receiveMessage();
+        when(this.sqs.receiveMessage(receiveMessageRequest)).thenReturn(new ReceiveMessageResult());
 
-        assertNull(resultReceiveMessage);
+        final List<Message> receivedMessages = this.sqsQueue.receiveMessages();
 
-        verify(this.sqs).receiveMessage(any(ReceiveMessageRequest.class));
+        assertEquals(Collections.emptyList(), receivedMessages);
+
+        verify(this.sqs).receiveMessage(receiveMessageRequest);
     }
 
     @Test
-    public void addSNSPermissionsTest() {
+    public void shouldEnableSNS() {
         final String topicArn = "topicArn1";
-        final GetQueueAttributesResult getQueueAttributesResult = createGetQueueAttributesResult();
 
-        when(this.sqs.getQueueAttributes(any(GetQueueAttributesRequest.class))).thenReturn(getQueueAttributesResult);
+        GetQueueAttributesRequest getQueueAttributesRequest = new GetQueueAttributesRequest()
+            .withQueueUrl(queueUrl)
+            .withAttributeNames("QueueArn");
+        when(this.sqs.getQueueAttributes(getQueueAttributesRequest))
+            .thenReturn(new GetQueueAttributesResult().addAttributesEntry("QueueArn", "queueArn1"));
 
         this.sqsQueue.enableSNS(topicArn);
 
-        verify(this.sqs).setQueueAttributes(any(SetQueueAttributesRequest.class));
-        verify(this.sqs).getQueueAttributes(any(GetQueueAttributesRequest.class));
-    }
+        verify(this.sqs)
+            .setQueueAttributes(
+                new SetQueueAttributesRequest()
+                    .withQueueUrl(this.queueUrl)
+                    .addAttributesEntry(
+                        "Policy",
+                        new Policy()
+                            .withStatements(
+                                new Statement(Statement.Effect.Allow)
+                                    .withPrincipals(Principal.AllUsers)
+                                    .withActions(SQSActions.SendMessage)
+                                    .withResources(new Resource("queueArn1"))
+                                    .withConditions(
+                                        new ArnCondition(
+                                            ArnCondition.ArnComparisonType.ArnEquals,
+                                            ConditionFactory.SOURCE_ARN_CONDITION_KEY,
+                                            topicArn
+                                        )
+                                    )
+                            )
+                            .toJson()
+                    )
+            );
 
-    private void verifySendMessageRequest(final String messageBody, Integer delaySeconds) {
-        final ArgumentCaptor<SendMessageRequest> sendMessageRequestCaptor = ArgumentCaptor.forClass(
-            SendMessageRequest.class
-        );
-        verify(this.sqs).sendMessageAsync(sendMessageRequestCaptor.capture());
-
-        assertEquals(messageBody, sendMessageRequestCaptor.getValue().getMessageBody());
-        assertEquals(this.queueUrl, sendMessageRequestCaptor.getValue().getQueueUrl());
-        assertEquals(delaySeconds, sendMessageRequestCaptor.getValue().getDelaySeconds());
+        verify(this.sqs).getQueueAttributes(getQueueAttributesRequest);
     }
 }

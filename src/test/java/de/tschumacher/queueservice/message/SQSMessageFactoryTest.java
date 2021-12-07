@@ -20,16 +20,19 @@ import de.tschumacher.queueservice.message.coder.SQSCoder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
 
 public class SQSMessageFactoryTest {
     private SQSMessageFactory<TestDO> factory;
+
+    @Mock
     private SQSCoder<TestDO> coder;
 
-    @SuppressWarnings("unchecked")
     @BeforeEach
     public void setUp() {
-        this.coder = Mockito.mock(SQSCoder.class);
+        MockitoAnnotations.openMocks(this);
         this.factory = new SQSMessageFactory<>(coder);
     }
 
@@ -39,25 +42,21 @@ public class SQSMessageFactoryTest {
     }
 
     @Test
-    public void decodeMessageTest() {
-        final String messageGroupId = "messageGroupId1";
+    public void shouldDecodeMessage() {
         String plainContent = "plainContent1";
         final TestDO message = new TestDO("test1");
 
         Mockito.when(this.coder.decode(message)).thenReturn(plainContent);
 
-        SQSMessage<TestDO> factoryMessage = factory.createSQSMessage(message, messageGroupId);
+        SQSMessage<TestDO> factoryMessage = factory.createSQSMessage(message);
 
-        assertEquals(
-            factoryMessage,
-            SQSMessage.builder().content(message).plainContent(plainContent).messageGroupId(messageGroupId).build()
-        );
+        assertEquals(factoryMessage, SQSMessage.builder().content(message).plainContent(plainContent).build());
 
         Mockito.verify(this.coder).decode(message);
     }
 
     @Test
-    public void decodeTest() {
+    public void shouldEncodeMessage() {
         final TestDO testMessage = new TestDO("test1");
         final Message message = new Message()
             .withMessageId("messageId1")

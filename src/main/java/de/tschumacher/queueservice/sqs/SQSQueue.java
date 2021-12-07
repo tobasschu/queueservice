@@ -37,8 +37,12 @@ public class SQSQueue {
     private final String queueUrl;
 
     public SQSQueue(final SQSQueueConfiguration configuration) {
+        this(configuration, createAmazonSQS(configuration));
+    }
+
+    public SQSQueue(final SQSQueueConfiguration configuration, final AmazonSQSAsync sqs) {
         this.configuration = configuration;
-        this.sqs = createAmazonSQS(configuration);
+        this.sqs = sqs;
         this.queueUrl = getOrCreateQueue(this.sqs, configuration);
     }
 
@@ -55,7 +59,7 @@ public class SQSQueue {
             .build();
     }
 
-    public static String getOrCreateQueue(final AmazonSQS sqs, final SQSQueueConfiguration configuration) {
+    private static String getOrCreateQueue(final AmazonSQS sqs, final SQSQueueConfiguration configuration) {
         String queueUrl;
         try {
             queueUrl = sqs.getQueueUrl(configuration.getQueueName()).getQueueUrl();
@@ -80,7 +84,7 @@ public class SQSQueue {
     }
 
     public void deleteMessage(final String receiptHandle) {
-        this.sqs.deleteMessage(this.queueUrl, receiptHandle);
+        this.sqs.deleteMessage(new DeleteMessageRequest().withQueueUrl(this.queueUrl).withReceiptHandle(receiptHandle));
     }
 
     public void retryMessage(final String receiptHandle) {

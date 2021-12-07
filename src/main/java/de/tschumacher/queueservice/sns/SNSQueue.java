@@ -20,19 +20,23 @@ import com.amazonaws.services.sns.AmazonSNS;
 import com.amazonaws.services.sns.AmazonSNSAsync;
 import com.amazonaws.services.sns.AmazonSNSAsyncClientBuilder;
 import com.amazonaws.services.sns.model.CreateTopicRequest;
+import com.amazonaws.services.sns.model.PublishRequest;
+import de.tschumacher.queueservice.message.SQSMessage;
 
 public class SNSQueue {
-    private final SNSQueueConfiguration configuration;
     private final AmazonSNSAsync sns;
     private final String topicArn;
 
     public SNSQueue(final SNSQueueConfiguration configuration) {
-        this.configuration = configuration;
-        this.sns = createAmazonSQS(configuration);
+        this(createAmazonSQS(configuration), configuration);
+    }
+
+    public SNSQueue(final AmazonSNSAsync sns, final SNSQueueConfiguration configuration) {
+        this.sns = sns;
         this.topicArn = createTopic(this.sns, configuration);
     }
 
-    public static String createTopic(AmazonSNS sns, SNSQueueConfiguration configuration) {
+    public static String createTopic(final AmazonSNS sns, final SNSQueueConfiguration configuration) {
         CreateTopicRequest createTopicRequest = new CreateTopicRequest()
             .withName(configuration.getTopicName())
             .addAttributesEntry("FifoTopic", Boolean.toString(configuration.isFifo()));
@@ -40,7 +44,7 @@ public class SNSQueue {
     }
 
     private static AmazonSNSAsync createAmazonSQS(final SNSQueueConfiguration configuration) {
-        final BasicAWSCredentials credentials = new BasicAWSCredentials(
+        BasicAWSCredentials credentials = new BasicAWSCredentials(
             configuration.getAccessKey(),
             configuration.getSecretKey()
         );
@@ -52,13 +56,17 @@ public class SNSQueue {
             .build();
     }
 
-    public void sendMessage(String message) {
-        //TODO use SQSMessage
-        this.sns.publishAsync(this.topicArn, message);
+    public void sendMessage(SQSMessage<?> sqsMessage) {
+        PublishRequest publishRequest = new PublishRequest()
+            .withMessage(sqsMessage.getPlainContent())
+            .withMessageGroupId(sqsMessage.getMessageGroupId())
+            .withTopicArn(this.topicArn);
+
+        this.sns.publishAsync(publishRequest);
     }
 
     public void subscribeSQSQueue(String queueArn) {
-        this.sns.subscribe(getTopicArn(), "sqs", queueArn);
+        this.sns.subscribe(this.topicArn, "sqs", queueArn);
     }
 
     public String getTopicArn() {

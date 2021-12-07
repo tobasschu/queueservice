@@ -13,53 +13,40 @@
  */
 package de.tschumacher.queueservice.message.coder;
 
-
-import de.tschumacher.queueservice.message.TestDO;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-
+import de.tschumacher.queueservice.message.TestDO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-
 public class GsonSQSCoderTest {
-  private GsonSQSCoder<TestDO> coder;
-  private Gson gson;
+    private GsonSQSCoder<TestDO> coder;
+    private Gson gson;
 
+    @BeforeEach
+    public void setUp() {
+        this.gson = new GsonBuilder().create();
+        this.coder = new GsonSQSCoder<>(this.gson, TestDO.class);
+    }
 
-  @BeforeEach
-  public void setUp() {
-    this.gson = new GsonBuilder().create();
-    this.coder = new GsonSQSCoder<>(this.gson, TestDO.class);
-  }
-
-
-  @Test
+    @Test
     public void decodeTest() {
-    final TestDO message = new TestDO("test1");
+        final TestDO message = new TestDO("test1");
 
-    final String decodeMessage = this.coder.decode(message);
-    System.out.println(this.gson.toJson(message));
+        final String decodeMessage = this.coder.decode(message);
 
-    assertEquals(this.gson.toJson(message), decodeMessage);
+        assertEquals(this.gson.toJson(message), decodeMessage);
+    }
 
-  }
+    @Test
+    public void encodeTest() {
+        final TestDO message = new TestDO("test1");
+        final String decodedMessage = this.gson.toJson(message);
 
-  @Test
-  public void encodeTest() {
+        final TestDO encodedMessage = this.coder.encode(decodedMessage);
 
-    final TestDO message = new TestDO("test1");
-    final String decodedMessage = this.gson.toJson(message);
-
-
-    final TestDO encodedMessage = this.coder.encode(decodedMessage);
-
-    assertEquals(this.gson.fromJson(decodedMessage, TestDO.class).getContent(),
-        encodedMessage.getContent());
-  }
-
-
+        assertEquals(this.gson.fromJson(decodedMessage, TestDO.class).getContent(), encodedMessage.getContent());
+    }
 }

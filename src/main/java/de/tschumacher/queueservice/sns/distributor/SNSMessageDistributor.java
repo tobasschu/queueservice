@@ -23,10 +23,6 @@ public class SNSMessageDistributor<T> {
     private final SQSMessageFactory<T> factory;
 
     public void distribute(final T message) {
-        this.snsQueue.sendMessage(createMessage(message));
-    }
-
-    private String createMessage(final T message) {
-        return this.factory.createSQSMessage(message).getPlainContent();
+        this.snsQueue.sendMessage(this.factory.createSQSMessage(message));
     }
 }

@@ -20,20 +20,16 @@ import de.tschumacher.queueservice.message.SQSMessageFactory;
 import de.tschumacher.queueservice.MessageReceiver;
 import de.tschumacher.queueservice.sqs.SQSQueue;
 import java.util.List;
+import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@AllArgsConstructor
 public class SQSMessageReceiver<F> implements MessageReceiver<F> {
     private static final Logger logger = LoggerFactory.getLogger(SQSMessageReceiver.class);
 
     private final MessageHandler<F> handler;
     private final SQSMessageFactory<F> factory;
-
-    public SQSMessageReceiver(final MessageHandler<F> handler, final SQSMessageFactory<F> factory) {
-        super();
-        this.handler = handler;
-        this.factory = factory;
-    }
 
     public void receiveMessages(final SQSQueue queue) {
         final List<Message> receiveMessages = queue.receiveMessages();
@@ -46,7 +42,7 @@ public class SQSMessageReceiver<F> implements MessageReceiver<F> {
         try {
             SQSMessage<F> message = this.factory.createSQSMessage(receiveMessage);
             this.handler.receivedMessage(queue, message);
-            queue.deleteMessage(receiveMessage.getReceiptHandle());
+            queue.deleteMessage(message.getReceiptHandle());
         } catch (final Throwable e) {
             logger.error("Handling message failed for ID {}: {}", receiveMessage.getMessageId(), e.getMessage(), e);
             queue.retryMessage(receiveMessage.getReceiptHandle());

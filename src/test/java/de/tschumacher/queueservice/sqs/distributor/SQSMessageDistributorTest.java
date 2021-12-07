@@ -14,23 +14,28 @@
 package de.tschumacher.queueservice.sqs.distributor;
 
 import de.tschumacher.queueservice.message.coder.GsonSQSCoder;
+import de.tschumacher.queueservice.message.SQSMessage;
 import de.tschumacher.queueservice.message.SQSMessageFactory;
 import de.tschumacher.queueservice.message.TestDO;
+import de.tschumacher.queueservice.sqs.SQSQueue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
 
 public class SQSMessageDistributorTest {
-    private SQSMessageFactory<TestDO> factory;
     private SQSMessageDistributor<TestDO> sqsMessageDistributor;
+
+    @Mock
     private SQSQueue queue;
 
     @BeforeEach
     public void setUp() {
-        this.queue = Mockito.mock(SQSQueue.class);
-        this.factory = new SQSMessageFactory<>(new GsonSQSCoder<>(TestDO.class));
-        this.sqsMessageDistributor = new SQSMessageDistributor<>(this.queue, this.factory);
+        MockitoAnnotations.openMocks(this);
+        this.sqsMessageDistributor =
+            new SQSMessageDistributor<>(this.queue, new SQSMessageFactory<>(new GsonSQSCoder<>(TestDO.class)));
     }
 
     @AfterEach
@@ -39,21 +44,70 @@ public class SQSMessageDistributorTest {
     }
 
     @Test
-    public void distributeTest() {
+    public void shouldDistributeMessage() {
         final TestDO message = new TestDO("testDO1");
 
         this.sqsMessageDistributor.distribute(message);
 
-        Mockito.verify(this.queue).sendMessage(this.factory.createSQSMessage(message).getPlainContent());
+        SQSMessage<TestDO> sqsMessage = SQSMessage
+            .<TestDO>builder()
+            .content(message)
+            .plainContent("{\"content\":\"testDO1\"}")
+            .build();
+
+        Mockito.verify(this.queue).sendMessage(sqsMessage);
     }
 
     @Test
-    public void distributeDelayedTest() {
+    public void shouldDistributeMessageWithDelay() {
         final TestDO message = new TestDO("testDO1");
         final int delay = 5;
 
         this.sqsMessageDistributor.distribute(message, delay);
 
-        Mockito.verify(this.queue).sendMessage(this.factory.createSQSMessage(message).getPlainContent(), delay);
+        SQSMessage<TestDO> sqsMessage = SQSMessage
+            .<TestDO>builder()
+            .content(message)
+            .plainContent("{\"content\":\"testDO1\"}")
+            .delay(delay)
+            .build();
+
+        Mockito.verify(this.queue).sendMessage(sqsMessage);
+    }
+
+    @Test
+    public void shouldDistributeMessageWithMessageGroupId() {
+        final TestDO message = new TestDO("testDO1");
+        final String messageGroupId = "messageGroupId1";
+
+        this.sqsMessageDistributor.distribute(message, messageGroupId);
+
+        SQSMessage<TestDO> sqsMessage = SQSMessage
+            .<TestDO>builder()
+            .content(message)
+            .plainContent("{\"content\":\"testDO1\"}")
+            .messageGroupId(messageGroupId)
+            .build();
+
+        Mockito.verify(this.queue).sendMessage(sqsMessage);
+    }
+
+    @Test
+    public void shouldDistributeMessageWithMessageGroupIdAndDelay() {
+        final TestDO message = new TestDO("testDO1");
+        final String messageGroupId = "messageGroupId1";
+        final int delay = 5;
+
+        this.sqsMessageDistributor.distribute(message, messageGroupId, delay);
+
+        SQSMessage<TestDO> sqsMessage = SQSMessage
+            .<TestDO>builder()
+            .content(message)
+            .plainContent("{\"content\":\"testDO1\"}")
+            .messageGroupId(messageGroupId)
+            .delay(delay)
+            .build();
+
+        Mockito.verify(this.queue).sendMessage(sqsMessage);
     }
 }

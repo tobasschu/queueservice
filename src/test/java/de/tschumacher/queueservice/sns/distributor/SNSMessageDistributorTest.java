@@ -14,21 +14,27 @@
 package de.tschumacher.queueservice.sns.distributor;
 
 import de.tschumacher.queueservice.message.coder.GsonSQSCoder;
+import de.tschumacher.queueservice.message.SQSMessage;
 import de.tschumacher.queueservice.message.SQSMessageFactory;
 import de.tschumacher.queueservice.message.TestDO;
+import de.tschumacher.queueservice.sns.SNSQueue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
 
 public class SNSMessageDistributorTest {
     private SNSMessageDistributor<TestDO> snsMessageDistributor;
     private SQSMessageFactory<TestDO> factory;
+
+    @Mock
     private SNSQueue snsQueue;
 
     @BeforeEach
     public void setUp() {
-        this.snsQueue = Mockito.mock(SNSQueue.class);
+        MockitoAnnotations.openMocks(this);
         this.factory = new SQSMessageFactory<>(new GsonSQSCoder<>(TestDO.class));
         this.snsMessageDistributor = new SNSMessageDistributor<>(this.snsQueue, this.factory);
     }
@@ -39,11 +45,15 @@ public class SNSMessageDistributorTest {
     }
 
     @Test
-    public void distributeTest() {
+    public void shouldDistributeMessage() {
         final TestDO message = new TestDO("testDO1");
 
         this.snsMessageDistributor.distribute(message);
 
-        Mockito.verify(this.snsQueue).sendMessage(this.factory.createSQSMessage(message).getPlainContent());
+        Mockito
+            .verify(this.snsQueue)
+            .sendMessage(
+                SQSMessage.<TestDO>builder().plainContent("{\"content\":\"testDO1\"}").content(message).build()
+            );
     }
 }
