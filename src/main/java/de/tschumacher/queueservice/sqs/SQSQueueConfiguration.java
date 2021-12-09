@@ -37,7 +37,7 @@ public class SQSQueueConfiguration {
     private int visibilityTimeout = 60 * 5;
 
     @Builder.Default
-    private int waitTimeSeconds = 30;
+    private int waitTimeSeconds = 20;
 
     @Builder.Default
     private int maxNumberOfMessages = 1;
