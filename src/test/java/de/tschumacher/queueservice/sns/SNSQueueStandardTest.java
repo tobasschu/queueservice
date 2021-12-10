@@ -20,6 +20,7 @@ import com.amazonaws.services.sns.AmazonSNSAsync;
 import com.amazonaws.services.sns.model.CreateTopicRequest;
 import com.amazonaws.services.sns.model.CreateTopicResult;
 import com.amazonaws.services.sns.model.PublishRequest;
+import com.amazonaws.services.sns.model.SubscribeRequest;
 import de.tschumacher.queueservice.message.SQSMessage;
 import de.tschumacher.queueservice.message.TestDO;
 import org.junit.jupiter.api.AfterEach;
@@ -28,7 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-public class SNSQueueTest {
+public class SNSQueueStandardTest {
     private SNSQueue snsQueue;
 
     @Mock
@@ -47,13 +48,7 @@ public class SNSQueueTest {
             .accessKey("accessKey1")
             .build();
 
-        when(
-                this.sns.createTopic(
-                        new CreateTopicRequest()
-                            .withName(configuration.getTopicName())
-                            .addAttributesEntry("FifoTopic", "false")
-                    )
-            )
+        when(this.sns.createTopic(new CreateTopicRequest().withName(configuration.getTopicName())))
             .thenReturn(new CreateTopicResult().withTopicArn(topicArn));
 
         this.snsQueue = new SNSQueue(this.sns, configuration);
@@ -61,61 +56,34 @@ public class SNSQueueTest {
 
     @AfterEach
     public void shutDown() {
-        verify(this.sns)
-            .createTopic(new CreateTopicRequest().withName("topicName1").addAttributesEntry("FifoTopic", "false"));
+        verify(this.sns).createTopic(new CreateTopicRequest().withName("topicName1"));
         verifyNoMoreInteractions(this.sns);
     }
 
     @Test
-    public void shouldCreateFifoSNSQueue() {
-        SNSQueueConfiguration configuration = SNSQueueConfiguration
-            .builder()
-            .topicName("topicName1.fifo")
-            .secretKey("secretKey1")
-            .accessKey("accessKey1")
-            .build();
-
-        when(
-                this.sns.createTopic(
-                        new CreateTopicRequest()
-                            .withName(configuration.getTopicName())
-                            .addAttributesEntry("FifoTopic", "true")
-                    )
-            )
-            .thenReturn(new CreateTopicResult().withTopicArn(topicArn));
-
-        this.snsQueue = new SNSQueue(this.sns, configuration);
-
-        verify(this.sns)
-            .createTopic(new CreateTopicRequest().withName("topicName1.fifo").addAttributesEntry("FifoTopic", "true"));
-    }
-
-    @Test
     public void sendMessageTest() {
-        SQSMessage<TestDO> sqsMessage = SQSMessage
-            .<TestDO>builder()
-            .plainContent("content1")
-            .messageGroupId("messageGroup1")
-            .build();
+        SQSMessage<TestDO> sqsMessage = SQSMessage.<TestDO>builder().plainContent("content1").build();
 
         this.snsQueue.sendMessage(sqsMessage);
 
         verify(this.sns)
-            .publishAsync(
-                new PublishRequest()
-                    .withMessage("content1")
-                    .withMessageGroupId("messageGroup1")
-                    .withTopicArn(this.topicArn)
-            );
+            .publishAsync(eq(new PublishRequest().withMessage("content1").withTopicArn(this.topicArn)), any());
     }
 
     @Test
     public void subscribeSQSQueueTest() {
-        final String queueUrl = "queueUrl1";
+        final String queueArn = "queueArn1";
 
-        this.snsQueue.subscribeSQSQueue(queueUrl);
+        this.snsQueue.subscribeSQSQueue(queueArn);
 
-        verify(this.sns).subscribe(this.topicArn, "sqs", queueUrl);
+        verify(this.sns)
+            .subscribe(
+                new SubscribeRequest()
+                    .withTopicArn(topicArn)
+                    .withEndpoint(queueArn)
+                    .withProtocol("sqs")
+                    .addAttributesEntry("RawMessageDelivery", "true")
+            );
     }
 
     @Test

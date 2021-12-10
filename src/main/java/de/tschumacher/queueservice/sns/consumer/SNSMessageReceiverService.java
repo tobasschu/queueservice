@@ -16,6 +16,7 @@ package de.tschumacher.queueservice.sns.consumer;
 import de.tschumacher.queueservice.AbstractMessageReceiverService;
 import de.tschumacher.queueservice.message.MessageHandler;
 import de.tschumacher.queueservice.message.SQSMessageFactory;
+import de.tschumacher.queueservice.MessageReceiver;
 import de.tschumacher.queueservice.sns.SNSQueue;
 import de.tschumacher.queueservice.sqs.SQSQueue;
 
@@ -27,7 +28,7 @@ public class SNSMessageReceiverService<F> extends AbstractMessageReceiverService
         MessageHandler<F> handler,
         SQSMessageFactory<F> factory
     ) {
-        super(sqsQueue, new SNSMessageReceiver<>(handler, factory));
+        super(sqsQueue, new MessageReceiver<>(handler, factory));
         snsQueue.subscribeSQSQueue(sqsQueue.getQueueArn());
         sqsQueue.enableSNS(snsQueue.getTopicArn());
     }

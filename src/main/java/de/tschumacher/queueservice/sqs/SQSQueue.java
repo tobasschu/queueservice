@@ -23,6 +23,7 @@ import com.amazonaws.auth.policy.Policy;
 import com.amazonaws.auth.policy.Principal;
 import com.amazonaws.auth.policy.Resource;
 import com.amazonaws.auth.policy.Statement;
+import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSAsync;
@@ -30,8 +31,11 @@ import com.amazonaws.services.sqs.AmazonSQSAsyncClientBuilder;
 import com.amazonaws.services.sqs.model.*;
 import de.tschumacher.queueservice.message.SQSMessage;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SQSQueue {
+    private static final Logger logger = LoggerFactory.getLogger(SQSQueue.class);
     private final SQSQueueConfiguration configuration;
     private final AmazonSQSAsync sqs;
     private final String queueUrl;
@@ -43,7 +47,7 @@ public class SQSQueue {
     public SQSQueue(final SQSQueueConfiguration configuration, final AmazonSQSAsync sqs) {
         this.configuration = configuration;
         this.sqs = sqs;
-        this.queueUrl = getOrCreateQueue(this.sqs, configuration);
+        queueUrl = getOrCreateQueue(sqs, configuration);
     }
 
     private static AmazonSQSAsync createAmazonSQS(final SQSQueueConfiguration configuration) {
@@ -65,9 +69,13 @@ public class SQSQueue {
             queueUrl = sqs.getQueueUrl(configuration.getQueueName()).getQueueUrl();
         } catch (final QueueDoesNotExistException e) {
             CreateQueueRequest createQueueRequest = new CreateQueueRequest()
-                .withQueueName(configuration.getQueueName())
-                .addAttributesEntry("FifoQueue", Boolean.toString(configuration.isFifo()));
+            .withQueueName(configuration.getQueueName());
 
+            if (configuration.isFifo()) {
+                createQueueRequest
+                    .addAttributesEntry("FifoQueue", Boolean.toString(configuration.isFifo()))
+                    .addAttributesEntry("ContentBasedDeduplication", "true");
+            }
             queueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
         }
 
@@ -75,51 +83,68 @@ public class SQSQueue {
     }
 
     public synchronized List<Message> receiveMessages() {
-        final ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(this.queueUrl)
+        ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest(queueUrl)
             .withWaitTimeSeconds(configuration.getWaitTimeSeconds())
             .withMaxNumberOfMessages(configuration.getMaxNumberOfMessages())
             .withVisibilityTimeout(configuration.getVisibilityTimeout());
 
-        return this.sqs.receiveMessage(receiveMessageRequest).getMessages();
+        return sqs.receiveMessage(receiveMessageRequest).getMessages();
     }
 
     public void deleteMessage(final String receiptHandle) {
-        this.sqs.deleteMessage(new DeleteMessageRequest().withQueueUrl(this.queueUrl).withReceiptHandle(receiptHandle));
+        sqs.deleteMessage(new DeleteMessageRequest().withQueueUrl(queueUrl).withReceiptHandle(receiptHandle));
     }
 
     public void retryMessage(final String receiptHandle) {
         ChangeMessageVisibilityRequest changeMessageVisibilityRequest = new ChangeMessageVisibilityRequest()
             .withQueueUrl(queueUrl)
-            .withVisibilityTimeout(this.configuration.getRetrySeconds())
+            .withVisibilityTimeout(configuration.getRetrySeconds())
             .withReceiptHandle(receiptHandle);
 
-        this.sqs.changeMessageVisibility(changeMessageVisibilityRequest);
+        sqs.changeMessageVisibility(changeMessageVisibilityRequest);
     }
 
     public void sendMessage(final SQSMessage<?> sqsMessage) {
-        final SendMessageRequest sendMessageRequest = new SendMessageRequest()
-            .withQueueUrl(this.queueUrl)
+        SendMessageRequest sendMessageRequest = new SendMessageRequest()
+            .withQueueUrl(queueUrl)
             .withMessageBody(sqsMessage.getPlainContent())
-            .withDelaySeconds(sqsMessage.getDelay())
-            .withMessageGroupId(sqsMessage.getMessageGroupId());
+            .withDelaySeconds(sqsMessage.getDelay());
 
-        this.sqs.sendMessageAsync(sendMessageRequest);
+        if (configuration.isFifo()) {
+            sendMessageRequest.withMessageGroupId(sqsMessage.getMessageGroupId());
+        }
+
+        sqs.sendMessageAsync(
+            sendMessageRequest,
+            new AsyncHandler<SendMessageRequest, SendMessageResult>() {
+
+                @Override
+                public void onError(Exception e) {
+                    logger.error("SQS send message failed.", e);
+                }
+
+                @Override
+                public void onSuccess(SendMessageRequest request, SendMessageResult result) {
+                    logger.debug("SQS message sent successfully: {}", result.getMessageId());
+                }
+            }
+        );
     }
 
     public String getQueueArn() {
-        final GetQueueAttributesRequest getQueueAttributesRequest = new GetQueueAttributesRequest()
-            .withQueueUrl(this.queueUrl)
+        GetQueueAttributesRequest getQueueAttributesRequest = new GetQueueAttributesRequest()
+            .withQueueUrl(queueUrl)
             .withAttributeNames("QueueArn");
 
-        return this.sqs.getQueueAttributes(getQueueAttributesRequest).getAttributes().get("QueueArn");
+        return sqs.getQueueAttributes(getQueueAttributesRequest).getAttributes().get("QueueArn");
     }
 
     public void enableSNS(String topicArn) {
-        final SetQueueAttributesRequest setQueueAttributesRequest = new SetQueueAttributesRequest()
-            .withQueueUrl(this.queueUrl)
+        SetQueueAttributesRequest setQueueAttributesRequest = new SetQueueAttributesRequest()
+            .withQueueUrl(queueUrl)
             .addAttributesEntry("Policy", new Policy().withStatements(createPolicyStatement(topicArn)).toJson());
 
-        this.sqs.setQueueAttributes(setQueueAttributesRequest);
+        sqs.setQueueAttributes(setQueueAttributesRequest);
     }
 
     private Statement createPolicyStatement(String topicArn) {

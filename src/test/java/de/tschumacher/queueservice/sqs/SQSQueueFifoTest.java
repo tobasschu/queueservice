@@ -33,9 +33,10 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.*;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
-public class SQSQueueTest {
+public class SQSQueueFifoTest {
     private SQSQueue sqsQueue;
 
     @Mock
@@ -50,44 +51,20 @@ public class SQSQueueTest {
         configuration =
             SQSQueueConfiguration
                 .builder()
-                .queueName("queueName1")
+                .queueName("queueName1.fifo")
                 .secretKey("secretKey1")
                 .accessKey("accessKey1")
                 .build();
 
-        when(this.sqs.getQueueUrl("queueName1")).thenReturn(new GetQueueUrlResult().withQueueUrl(queueUrl));
+        when(this.sqs.getQueueUrl("queueName1.fifo")).thenReturn(new GetQueueUrlResult().withQueueUrl(queueUrl));
 
         this.sqsQueue = new SQSQueue(configuration, this.sqs);
     }
 
     @AfterEach
     public void shutDown() {
-        verify(this.sqs).getQueueUrl("queueName1");
+        verify(this.sqs).getQueueUrl("queueName1.fifo");
         verifyNoMoreInteractions(this.sqs);
-    }
-
-    @Test
-    public void shouldCreateStandardQueue() {
-        SQSQueueConfiguration configuration = SQSQueueConfiguration
-            .builder()
-            .queueName("queueName2")
-            .secretKey("secretKey1")
-            .accessKey("accessKey1")
-            .build();
-
-        when(this.sqs.getQueueUrl("queueName2")).thenThrow(new QueueDoesNotExistException("queueName2"));
-        when(
-                this.sqs.createQueue(
-                        new CreateQueueRequest().withQueueName("queueName2").addAttributesEntry("FifoQueue", "false")
-                    )
-            )
-            .thenReturn(new CreateQueueResult().withQueueUrl("queueUrl2"));
-
-        this.sqsQueue = new SQSQueue(configuration, this.sqs);
-
-        verify(this.sqs).getQueueUrl("queueName2");
-        verify(this.sqs)
-            .createQueue(new CreateQueueRequest().withQueueName("queueName2").addAttributesEntry("FifoQueue", "false"));
     }
 
     @Test
@@ -102,7 +79,10 @@ public class SQSQueueTest {
         when(this.sqs.getQueueUrl("queueName.fifo")).thenThrow(new QueueDoesNotExistException("queueName.fifo"));
         when(
                 this.sqs.createQueue(
-                        new CreateQueueRequest().withQueueName("queueName.fifo").addAttributesEntry("FifoQueue", "true")
+                        new CreateQueueRequest()
+                            .withQueueName("queueName.fifo")
+                            .addAttributesEntry("FifoQueue", "true")
+                            .addAttributesEntry("ContentBasedDeduplication", "true")
                     )
             )
             .thenReturn(new CreateQueueResult().withQueueUrl("queueUrl2"));
@@ -112,7 +92,10 @@ public class SQSQueueTest {
         verify(this.sqs).getQueueUrl("queueName.fifo");
         verify(this.sqs)
             .createQueue(
-                new CreateQueueRequest().withQueueName("queueName.fifo").addAttributesEntry("FifoQueue", "true")
+                new CreateQueueRequest()
+                    .withQueueName("queueName.fifo")
+                    .addAttributesEntry("FifoQueue", "true")
+                    .addAttributesEntry("ContentBasedDeduplication", "true")
             );
     }
 
@@ -133,7 +116,7 @@ public class SQSQueueTest {
             .withDelaySeconds(5)
             .withMessageGroupId("messageGroupId1");
 
-        verify(this.sqs).sendMessageAsync(expectedSendRequest);
+        verify(this.sqs).sendMessageAsync(eq(expectedSendRequest), any());
     }
 
     @Test

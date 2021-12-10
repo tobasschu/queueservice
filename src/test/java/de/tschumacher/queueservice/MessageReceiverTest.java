@@ -11,13 +11,14 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package de.tschumacher.queueservice.sqs.consumer;
+package de.tschumacher.queueservice;
 
 import com.amazonaws.services.sqs.model.Message;
 import de.tschumacher.queueservice.message.MessageHandler;
 import de.tschumacher.queueservice.message.SQSMessage;
 import de.tschumacher.queueservice.message.SQSMessageFactory;
 import de.tschumacher.queueservice.message.TestDO;
+import de.tschumacher.queueservice.MessageReceiver;
 import de.tschumacher.queueservice.sqs.SQSQueue;
 import java.util.Arrays;
 import java.util.Collections;
@@ -29,7 +30,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-public class SQSMessageReceiverTest {
+public class MessageReceiverTest {
     @Mock
     private SQSMessageFactory<TestDO> factory;
 
@@ -39,12 +40,12 @@ public class SQSMessageReceiverTest {
     @Mock
     private SQSQueue queue;
 
-    private SQSMessageReceiver<TestDO> sqsMessageReceiver;
+    private MessageReceiver<TestDO> sqsMessageReceiver;
 
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        this.sqsMessageReceiver = new SQSMessageReceiver<>(this.handler, this.factory);
+        this.sqsMessageReceiver = new MessageReceiver<>(this.handler, this.factory);
     }
 
     @AfterEach
