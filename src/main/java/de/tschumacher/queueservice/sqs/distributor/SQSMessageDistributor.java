@@ -13,12 +13,33 @@
  */
 package de.tschumacher.queueservice.sqs.distributor;
 
+import de.tschumacher.queueservice.message.SQSMessage;
+import de.tschumacher.queueservice.message.SQSMessageFactory;
+import de.tschumacher.queueservice.sqs.SQSQueue;
+import lombok.AllArgsConstructor;
 
+@AllArgsConstructor
+public class SQSMessageDistributor<T> {
+    private final SQSQueue sqsQueue;
+    private final SQSMessageFactory<T> factory;
 
-public interface SQSMessageDistributor<T> {
+    public void distribute(final T message) {
+        distribute(message, null, null);
+    }
 
-  void distribute(T message);
+    public void distribute(final T message, Integer delay) {
+        distribute(message, null, delay);
+    }
 
-  void distribute(T message, int delay);
+    public void distribute(final T message, String messageGroupId) {
+        distribute(message, messageGroupId, null);
+    }
 
+    public void distribute(final T message, String messageGroupId, Integer delay) {
+        SQSMessage<T> sqsMessage = this.factory.createSQSMessage(message);
+        sqsMessage.setMessageGroupId(messageGroupId);
+        sqsMessage.setDelay(delay);
+
+        this.sqsQueue.sendMessage(sqsMessage);
+    }
 }

@@ -16,13 +16,12 @@ package de.tschumacher.queueservice.sqs.consumer;
 import de.tschumacher.queueservice.AbstractMessageReceiverService;
 import de.tschumacher.queueservice.message.MessageHandler;
 import de.tschumacher.queueservice.message.SQSMessageFactory;
+import de.tschumacher.queueservice.MessageReceiver;
 import de.tschumacher.queueservice.sqs.SQSQueue;
 
 public class SQSMessageReceiverService<F> extends AbstractMessageReceiverService<F> {
 
-  public SQSMessageReceiverService(final SQSQueue queue, MessageHandler<F> handler,
-      SQSMessageFactory<F> factory) {
-    super(queue, new SQSMessageReceiver<>(handler, factory));
-  }
-
+    public SQSMessageReceiverService(final SQSQueue queue, MessageHandler<F> handler, SQSMessageFactory<F> factory) {
+        super(queue, new MessageReceiver<>(handler, factory));
+    }
 }

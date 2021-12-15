@@ -13,45 +13,66 @@
  */
 package de.tschumacher.queueservice.sns.distributor;
 
-import static de.tschumacher.queueservice.DataCreater.*;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mockito;
-
-import de.tschumacher.queueservice.message.SQSMessageFactory;
-import de.tschumacher.queueservice.message.TestMessage;
 import de.tschumacher.queueservice.message.coder.GsonSQSCoder;
+import de.tschumacher.queueservice.message.SQSMessage;
+import de.tschumacher.queueservice.message.SQSMessageFactory;
+import de.tschumacher.queueservice.message.TestDO;
 import de.tschumacher.queueservice.sns.SNSQueue;
-
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
 
 public class SNSMessageDistributorTest {
+    private SNSMessageDistributor<TestDO> snsMessageDistributor;
+    private SQSMessageFactory<TestDO> factory;
 
-  private SNSMessageDistributor<TestMessage> snsMessageDistributor;
-  private SQSMessageFactory<TestMessage> factory;
-  private SNSQueue snsQueue;
+    @Mock
+    private SNSQueue snsQueue;
 
+    @BeforeEach
+    public void setUp() {
+        MockitoAnnotations.openMocks(this);
+        this.factory = new SQSMessageFactory<>(new GsonSQSCoder<>(TestDO.class));
+        this.snsMessageDistributor = new SNSMessageDistributor<>(this.snsQueue, this.factory);
+    }
 
-  @Before
-  public void setUp() {
-    this.snsQueue = Mockito.mock(SNSQueue.class);
-    this.factory = new SQSMessageFactory<>(new GsonSQSCoder<>(TestMessage.class));
-    this.snsMessageDistributor = new SNSMessageDistributorImpl<>(this.snsQueue, this.factory);
-  }
+    @AfterEach
+    public void shutDown() {
+        Mockito.verifyNoMoreInteractions(this.snsQueue);
+    }
 
-  @After
-  public void shutDown() {
-    Mockito.verifyNoMoreInteractions(this.snsQueue);
-  }
+    @Test
+    public void shouldDistributeMessage() {
+        final TestDO message = new TestDO("testDO1");
 
-  @Test
-  public void distributeTest() {
-    final TestMessage message = createTestMessage();
+        this.snsMessageDistributor.distribute(message);
 
-    this.snsMessageDistributor.distribute(message);
+        Mockito
+            .verify(this.snsQueue)
+            .sendMessage(
+                SQSMessage.<TestDO>builder().plainContent("{\"content\":\"testDO1\"}").content(message).build()
+            );
+    }
 
-    Mockito.verify(this.snsQueue)
-        .sendMessage(this.factory.createMessage(message).getContentAsString());
-  }
+    @Test
+    public void shouldDistributeMessageWithMessageGroupId() {
+        final TestDO message = new TestDO("testDO1");
+        String messageGroupId = "messageGroupId1";
+
+        this.snsMessageDistributor.distribute(message, messageGroupId);
+
+        Mockito
+            .verify(this.snsQueue)
+            .sendMessage(
+                SQSMessage
+                    .<TestDO>builder()
+                    .plainContent("{\"content\":\"testDO1\"}")
+                    .content(message)
+                    .messageGroupId(messageGroupId)
+                    .build()
+            );
+    }
 }

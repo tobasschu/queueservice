@@ -15,30 +15,24 @@ package de.tschumacher.queueservice.message.coder;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import lombok.AllArgsConstructor;
 
+@AllArgsConstructor
 public class GsonSQSCoder<B> implements SQSCoder<B> {
+    private final Gson gson;
+    private final Class<B> clazz;
 
-  private final Gson gson;
-  private final Class<B> clazz;
+    public GsonSQSCoder(final Class<B> clazz) {
+        this(new GsonBuilder().create(), clazz);
+    }
 
-  public GsonSQSCoder(final Class<B> clazz) {
-    this(new GsonBuilder().create(), clazz);
-  }
+    @Override
+    public B encode(final String content) {
+        return this.gson.fromJson(content, this.clazz);
+    }
 
-  public GsonSQSCoder(Gson gson, final Class<B> clazz) {
-    super();
-    this.gson = gson;
-    this.clazz = clazz;
-  }
-
-  @Override
-  public B encode(final String content) {
-    return this.gson.fromJson(content, this.clazz);
-  }
-
-  @Override
-  public String decode(final B content) {
-    return this.gson.toJson(content);
-  }
-
+    @Override
+    public String decode(final B content) {
+        return this.gson.toJson(content);
+    }
 }
