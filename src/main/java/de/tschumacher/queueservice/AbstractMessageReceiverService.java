@@ -29,7 +29,6 @@ public abstract class AbstractMessageReceiverService<F> {
     private final MessageReceiver<F> messageReceiver;
 
     public AbstractMessageReceiverService(final SQSQueue queue, MessageReceiver<F> messageReceiver) {
-        super();
         this.messageReceiver = messageReceiver;
         this.worker = newWorker(queue);
         this.executorService = Executors.newFixedThreadPool(WORKER_COUNT);
@@ -42,7 +41,7 @@ public abstract class AbstractMessageReceiverService<F> {
         }
     }
 
-    public void stop() throws InterruptedException {
+    public void stop() {
         this.running = false;
         this.executorService.shutdown();
     }
@@ -51,9 +50,9 @@ public abstract class AbstractMessageReceiverService<F> {
         return () -> {
             while (AbstractMessageReceiverService.this.running) {
                 try {
-                    AbstractMessageReceiverService.this.messageReceiver.receiveMessage(queue);
+                    AbstractMessageReceiverService.this.messageReceiver.receiveMessages(queue);
                 } catch (final Throwable e) {
-                    logger.error("could not handle message", e);
+                    logger.error("Receiving message failed", e);
                 }
             }
         };

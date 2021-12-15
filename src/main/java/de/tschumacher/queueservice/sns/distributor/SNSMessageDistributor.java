@@ -13,6 +13,24 @@
  */
 package de.tschumacher.queueservice.sns.distributor;
 
-public interface SNSMessageDistributor<T> {
-    void distribute(T message);
+import de.tschumacher.queueservice.message.SQSMessage;
+import de.tschumacher.queueservice.message.SQSMessageFactory;
+import de.tschumacher.queueservice.sns.SNSQueue;
+import lombok.AllArgsConstructor;
+
+@AllArgsConstructor
+public class SNSMessageDistributor<T> {
+    private final SNSQueue snsQueue;
+    private final SQSMessageFactory<T> factory;
+
+    public void distribute(final T message) {
+        this.distribute(message, null);
+    }
+
+    public void distribute(final T message, String messageGroupId) {
+        SQSMessage<T> sqsMessage = this.factory.createSQSMessage(message);
+        sqsMessage.setMessageGroupId(messageGroupId);
+
+        this.snsQueue.sendMessage(sqsMessage);
+    }
 }
